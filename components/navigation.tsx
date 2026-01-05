@@ -72,12 +72,20 @@ export function Navigation() {
     }
   }
 
-  // Lógica mejorada para extraer datos de Discord
-  // Discord guarda los datos en user_metadata
-  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || "/placeholder.svg"
-  const displayName = user?.user_metadata?.global_name || user?.custom_claims?.global_name || user?.user_metadata?.display_name || user?.user_metadata?.username
-  const secondName = user?.user_metadata?.full_name
-  const handle = user?.user_metadata?.name || "discord_user"
+  // 1. Extraemos los metadatos para no repetir tanto código
+  const meta = user?.user_metadata;
+
+  // 2. Definición robusta
+  const avatarUrl = meta?.avatar_url || meta?.picture || "/placeholder.svg";
+
+  // Buscamos el nombre de visualización (Global Name)
+  const displayName = 
+    meta?.global_name ||              // Caso más común en Discord moderno
+    meta?.custom_claims?.global_name || // A veces Supabase lo mueve aquí
+    meta?.display_name ||             // Algunos providers lo llaman así
+    "Usuario";
+
+  const handle = meta?.name || "discord_user";
 
   return (
     <nav
