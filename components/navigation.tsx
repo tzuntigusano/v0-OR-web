@@ -72,7 +72,7 @@ export function Navigation() {
     }
   }
 
-  // 1. Extraemos los metadatos para no repetir tanto código
+ // 1. Extraemos los metadatos para no repetir tanto código
   const meta = user?.user_metadata;
 
   // 2. Definición robusta
@@ -84,9 +84,9 @@ export function Navigation() {
     meta?.custom_claims?.global_name || // A veces Supabase lo mueve aquí
     meta?.display_name ||             // Algunos providers lo llaman así
     "Usuario";
-
-  const handle = meta?.name || "discord_user";
-
+  
+  const handle = meta?.name || "discord_user"
+  const secondName = meta?.full_name
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
