@@ -75,7 +75,8 @@ export function Navigation() {
   // Lógica mejorada para extraer datos de Discord
   // Discord guarda los datos en user_metadata
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || "/placeholder.svg"
-  const displayName = user?.user_metadata?.global_name
+  const displayName = user?.user_metadata?.full_name
+  const secondName = user?.user_metadata?.name 
   const handle = user?.user_metadata?.name || "discord_user"
 
   return (
@@ -149,7 +150,7 @@ export function Navigation() {
                       />
                       <div className="flex flex-col items-start justify-center leading-tight">
                         <span className="text-sm font-bold text-white tracking-tight">
-                          {displayName}
+                          {secondName}
                         </span>
                       </div>
                     </button>
@@ -157,8 +158,7 @@ export function Navigation() {
                   <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-white">
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium">{displayName}</p>
-                        <p className="text-xs text-zinc-400">@{handle}</p>
+                        <p className="text-sm font-medium">{secondName}</p>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator className="bg-zinc-800" />
