@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import Image from "next/image"
 import Link from "next/link"
+import { usePathname } from "next/navigation" // Importamos usePathname
 import { LogOut, User } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
@@ -19,6 +20,10 @@ export function Navigation() {
   const [scrolled, setScrolled] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const pathname = usePathname() // Obtenemos la ruta actual
+
+  // Verificamos si estamos en la landing (página principal "/")
+  const isLandingPage = pathname === "/"
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50)
@@ -105,26 +110,32 @@ export function Navigation() {
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
-          <button
-            onClick={() => scrollToSection("about")}
-            className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide"
-          >
-            QUIÉNES SOMOS
-          </button>
+          {/* Solo se muestran si isLandingPage es true */}
+          {isLandingPage && (
+            <>
+              <button
+                onClick={() => scrollToSection("about")}
+                className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide"
+              >
+                QUIÉNES SOMOS
+              </button>
+
+              <button
+                onClick={() => scrollToSection("media")}
+                className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide"
+              >
+                CONTENIDO
+              </button>
+            </>
+          )}
+
           <Link
             href="/gallery"
             className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide"
           >
             GALERÍA
           </Link>
-          <button
-            onClick={() => scrollToSection("media")}
-            className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide"
-          >
-            CONTENIDO
-          </button>
           
-          {/* PUBLIC COMMS ahora a la izquierda de UNETE */}
           <Link
             href="/public-comms"
             className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide"
