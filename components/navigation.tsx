@@ -147,12 +147,9 @@ export function Navigation() {
                         height={36}
                         className="rounded-full border-2 border-primary object-cover"
                       />
-                      <div className="flex flex-col items-start leading-tight">
+                      <div className="flex flex-col items-start justify-center leading-tight">
                         <span className="text-sm font-bold text-white tracking-tight">
                           {displayName}
-                        </span>
-                        <span className="text-[10px] text-primary font-medium uppercase tracking-wider">
-                          Conectado
                         </span>
                       </div>
                     </button>
