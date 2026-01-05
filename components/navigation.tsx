@@ -22,25 +22,39 @@ export function Navigation() {
 
   useEffect(() => {
     const handleScroll = () => {
+      console.log("SESIÓN ACTUAL:", session)
       setScrolled(window.scrollY > 50)
     }
 
+    // Función para verificar el usuario
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
+      // Obtenemos la sesión completa. "data" contiene "session"
+      const { data, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error("Error obteniendo sesión:", error.message)
+      } else if (data && data.session) {
+        // Aquí SÍ existe la sesión, guardamos el usuario
+        setUser(data.session.user)
+      }
       setLoading(false)
     }
 
     checkUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+    // Escuchar cambios (login/logout)
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      // Usamos "currentSession" para evitar conflictos de nombres
+      setUser(currentSession?.user ?? null)
+      setLoading(false)
     })
 
     window.addEventListener("scroll", handleScroll)
+    
     return () => {
       window.removeEventListener("scroll", handleScroll)
-      subscription.unsubscribe()
+      // Limpiamos la suscripción al desmontar el componente
+      authListener.subscription.unsubscribe()
     }
   }, [])
 
