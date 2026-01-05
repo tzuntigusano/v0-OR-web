@@ -12,20 +12,55 @@ import {
 } from "@/components/ui/dropdown-menu"
 import Image from "next/image"
 import Link from "next/link"
-import { useDiscordAuth } from "@/hooks/use-discord-auth"
 import { LogOut, User } from "lucide-react"
+// Importamos el cliente que creamos nosotros en la carpeta lib
+import { supabase } from "@/lib/supabase"
 
 export function Navigation() {
   const [scrolled, setScrolled] = useState(false)
-  const { user, loading, login, logout, getAvatarUrl } = useDiscordAuth()
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50)
     }
+
+    // Comprobar sesión actual
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user ?? null)
+      setLoading(false)
+    }
+
+    checkUser()
+
+    // Escuchar cambios de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
     window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
+    return () => {
+      window.removeEventListener("scroll", handleScroll)
+      subscription.unsubscribe()
+    }
   }, [])
+
+  const login = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "discord",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) console.error("Error al loguear:", error.message)
+  }
+
+  const logout = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id)
@@ -33,6 +68,8 @@ export function Navigation() {
       element.scrollIntoView({ behavior: "smooth" })
     }
   }
+
+  const userMetadata = user?.user_metadata
 
   return (
     <nav
@@ -85,7 +122,7 @@ export function Navigation() {
           >
             <a href="https://google.es" target="_blank" rel="noopener noreferrer" className="flex items-center">
               ÚNETE
-              <Image src="/discord-logo.png" alt="Discord" width={20} height={20} className="mr-2 inline-block" />
+              <Image src="/discord-logo.png" alt="Discord" width={20} height={20} className="ml-2 inline-block" />
             </a>
           </Button>
 
@@ -96,21 +133,23 @@ export function Navigation() {
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                       <Image
-                        src={getAvatarUrl(user) || "/placeholder.svg"}
-                        alt={user.username}
+                        src={userMetadata?.avatar_url || "/placeholder.svg"}
+                        alt={userMetadata?.full_name || "Usuario"}
                         width={40}
                         height={40}
                         className="rounded-full border-2 border-primary"
                       />
-                      <span className="text-sm font-medium text-foreground">{user.global_name || user.username}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {userMetadata?.full_name || userMetadata?.name}
+                      </span>
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user.global_name || user.username}</p>
+                        <p className="text-sm font-medium leading-none">{userMetadata?.full_name}</p>
                         <p className="text-xs leading-none text-muted-foreground">
-                          {user.username}#{user.discriminator}
+                          @{userMetadata?.name}
                         </p>
                       </div>
                     </DropdownMenuLabel>
@@ -136,7 +175,7 @@ export function Navigation() {
                     alt="Discord" 
                     width={20} 
                     height={20} 
-                    className="mr-2 inline-block" // Cambiado ml-2 por mr-2 para que el margen sea interno
+                    className="ml-2 inline-block" 
                   />
                 </Button>
               )}
