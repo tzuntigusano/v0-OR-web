@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
-import { Loader2, Calendar, ImageIcon } from "lucide-react"
+import { Loader2, Calendar, ImageIcon, AlertCircle } from "lucide-react"
 import Image from "next/image"
 
 interface DiscordMessage {
@@ -19,105 +19,33 @@ interface DiscordMessage {
   }[]
 }
 
-const MOCK_MESSAGES: DiscordMessage[] = [
-  {
-    id: "1",
-    author: {
-      username: "CommanderAlex",
-      avatar: "/space-pilot-avatar.jpg",
-    },
-    content:
-      "¡Misión completada con éxito! El convoy llegó sano y salvo a Port Olisar. Excelente trabajo equipo, la coordinación fue impecable.",
-    timestamp: "2025-01-15T18:30:00Z",
-    attachments: [
-      {
-        url: "/star-citizen-convoy-mission.jpg",
-        filename: "convoy-mission-complete.jpg",
-      },
-    ],
-  },
-  {
-    id: "2",
-    author: {
-      username: "PilotSara",
-      avatar: "/female-space-pilot.jpg",
-    },
-    content:
-      "Próxima operación de minería programada para mañana a las 20:00 UTC. Necesitamos al menos 3 naves de escolta y 2 equipos de minería. ¿Quién se apunta?",
-    timestamp: "2025-01-15T16:45:00Z",
-  },
-  {
-    id: "3",
-    author: {
-      username: "TechOfficerMike",
-      avatar: "/tech-specialist-avatar.jpg",
-    },
-    content:
-      "Recordatorio: Esta noche tenemos práctica de combate en Arena Commander. Es importante que todos los pilotos nuevos asistan para mejorar sus habilidades de vuelo.",
-    timestamp: "2025-01-15T14:20:00Z",
-  },
-  {
-    id: "4",
-    author: {
-      username: "NavigatorJohn",
-      avatar: "/navigator-pilot-avatar.jpg",
-    },
-    content:
-      "He actualizado las rutas comerciales en el sistema Stanton. Los precios en Lorville están muy bien para vender minerales ahora mismo. Aprovechen antes de que cambien.",
-    timestamp: "2025-01-15T12:10:00Z",
-    attachments: [
-      {
-        url: "/star-citizen-trading-route-map.jpg",
-        filename: "trade-routes-stanton.png",
-      },
-    ],
-  },
-  {
-    id: "5",
-    author: {
-      username: "SecurityChief",
-      avatar: "/security-officer-avatar.jpg",
-    },
-    content:
-      "Alerta: Se reportó actividad pirata cerca de Crusader. Todos los pilotos deben viajar en formación y mantener comunicaciones abiertas.",
-    timestamp: "2025-01-15T10:05:00Z",
-  },
-  {
-    id: "6",
-    author: {
-      username: "EngineersClub",
-      avatar: "/engineer-avatar.png",
-    },
-    content:
-      "¡Nueva actualización del hangar! Ahora podemos reparar y modificar naves medianas. El taller está abierto 24/7 para todos los miembros.",
-    timestamp: "2025-01-15T08:30:00Z",
-  },
-]
-
 export default function PublicCommsPage() {
   const [loading, setLoading] = useState(true)
   const [messages, setMessages] = useState<DiscordMessage[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // TODO: Reemplazar con fetch real a Discord API
-    // Ejemplo de llamada:
-    // fetch('https://discord.com/api/v10/channels/YOUR_CHANNEL_ID/messages', {
-    //   headers: {
-    //     'Authorization': 'Bot YOUR_BOT_TOKEN'
-    //   }
-    // })
-    // .then(res => res.json())
-    // .then(data => {
-    //   setMessages(data);
-    //   setLoading(false);
-    // });
+    const fetchDiscordData = async () => {
+      try {
+        setLoading(true)
+        // Llamamos a nuestra API interna (que crearemos en /api/discord/route.ts)
+        const response = await fetch("/api/discord")
+        
+        if (!response.ok) {
+          throw new Error("No se pudieron cargar las comunicaciones")
+        }
 
-    const timer = setTimeout(() => {
-      setMessages(MOCK_MESSAGES)
-      setLoading(false)
-    }, 1500)
+        const data = await response.json()
+        setMessages(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error desconocido")
+        console.error("Error fetching Discord messages:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-    return () => clearTimeout(timer)
+    fetchDiscordData()
   }, [])
 
   const formatDate = (timestamp: string) => {
@@ -148,19 +76,31 @@ export default function PublicCommsPage() {
               PUBLIC <span className="text-primary">COMMS</span>
             </h1>
             <p className="text-foreground/70 text-lg max-w-2xl mx-auto leading-relaxed">
-              Mantente informado con las últimas comunicaciones de la organización. Todas las actualizaciones, misiones
-              y anuncios importantes en un solo lugar.
+              Mensajes en tiempo real desde nuestro centro de mando en Discord. 
+              Actualizaciones oficiales y reportes de misión.
             </p>
           </div>
+
+          {/* Error State */}
+          {error && (
+            <div className="flex items-center gap-3 p-4 mb-8 text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <AlertCircle className="w-5 h-5" />
+              <p>{error}</p>
+            </div>
+          )}
 
           {/* Loading State */}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-foreground/70 font-medium tracking-wide">Cargando comunicaciones...</p>
+              <p className="text-foreground/70 font-medium tracking-wide">Sincronizando con Discord...</p>
             </div>
           ) : (
             <div className="space-y-6">
+              {messages.length === 0 && !error && (
+                <p className="text-center text-foreground/50">No hay mensajes recientes en este canal.</p>
+              )}
+              
               {messages.map((message) => (
                 <article
                   key={message.id}
@@ -170,10 +110,9 @@ export default function PublicCommsPage() {
                   <div className="flex items-start gap-4 mb-4">
                     <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-primary/30 flex-shrink-0">
                       <Image
-                        src={message.author.avatar || "/placeholder.svg"}
+                        src={message.author.avatar}
                         alt={message.author.username}
-                        width={48}
-                        height={48}
+                        fill
                         className="object-cover"
                       />
                     </div>
@@ -187,23 +126,24 @@ export default function PublicCommsPage() {
                   </div>
 
                   {/* Message Content */}
-                  <div className="text-foreground/80 leading-relaxed text-base mb-4 pl-16">{message.content}</div>
+                  <div className="text-foreground/80 leading-relaxed text-base mb-4 md:pl-16">
+                    {message.content || <span className="italic opacity-50 text-sm">Contenido multimedia únicamente</span>}
+                  </div>
 
                   {/* Attachments */}
                   {message.attachments && message.attachments.length > 0 && (
-                    <div className="pl-16 space-y-3">
+                    <div className="md:pl-16 space-y-3">
                       {message.attachments.map((attachment, index) => (
                         <div
                           key={index}
                           className="relative rounded-lg overflow-hidden border border-border group cursor-pointer"
                         >
-                          <div className="relative aspect-video w-full">
+                          <div className="relative aspect-video w-full max-w-2xl">
                             <Image
-                              src={attachment.url || "/placeholder.svg"}
+                              src={attachment.url}
                               alt={attachment.filename}
-                              width={600}
-                              height={400}
-                              className="object-cover w-full h-full transition-transform group-hover:scale-105"
+                              fill
+                              className="object-cover transition-transform group-hover:scale-105"
                             />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                           </div>
@@ -226,7 +166,7 @@ export default function PublicCommsPage() {
           <div className="mt-12 text-center border-t border-border pt-12">
             <p className="text-foreground/60 mb-6 text-sm tracking-wide">¿Quieres participar en las conversaciones?</p>
             <a
-              href="https://discord.gg/YOUR_INVITE_LINK"
+              href="https://discord.gg/TU_LINK_DE_INVITACION"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold tracking-wide px-8 py-4 rounded-lg transition-all shadow-lg hover:shadow-primary/50"
