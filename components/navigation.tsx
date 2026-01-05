@@ -143,6 +143,12 @@ export function Navigation() {
             </a>
           </Button>
 
+          <Link
+            href="/public-comms"
+            className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide"
+          >PUBLIC COMMS
+          </Link>
+
           {!loading && (
             <div className="ml-4 border-l border-white/10 pl-4">
               {user ? (
