@@ -21,20 +21,16 @@ export function Navigation() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const handleScroll = () => {
-      console.log("SESIÓN ACTUAL:", session)
-      setScrolled(window.scrollY > 50)
-    }
+    const handleScroll = () => setScrolled(window.scrollY > 50)
 
-    // Función para verificar el usuario
     const checkUser = async () => {
-      // Obtenemos la sesión completa. "data" contiene "session"
+      // 1. Obtenemos el objeto completo 'data'
       const { data, error } = await supabase.auth.getSession()
       
       if (error) {
-        console.error("Error obteniendo sesión:", error.message)
+        console.error("Error al obtener sesión:", error.message)
       } else if (data && data.session) {
-        // Aquí SÍ existe la sesión, guardamos el usuario
+        // 2. Aquí accedemos a la sesión de forma segura
         setUser(data.session.user)
       }
       setLoading(false)
@@ -42,18 +38,15 @@ export function Navigation() {
 
     checkUser()
 
-    // Escuchar cambios (login/logout)
+    // Escuchamos cambios (cuando el usuario vuelve de Discord)
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      // Usamos "currentSession" para evitar conflictos de nombres
       setUser(currentSession?.user ?? null)
       setLoading(false)
     })
 
     window.addEventListener("scroll", handleScroll)
-    
     return () => {
       window.removeEventListener("scroll", handleScroll)
-      // Limpiamos la suscripción al desmontar el componente
       authListener.subscription.unsubscribe()
     }
   }, [])
