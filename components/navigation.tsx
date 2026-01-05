@@ -75,8 +75,8 @@ export function Navigation() {
   // Lógica mejorada para extraer datos de Discord
   // Discord guarda los datos en user_metadata
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || "/placeholder.svg"
-  const displayName = user?.user_metadata?.full_name
-  const secondName = user?.user_metadata?.name 
+  const displayName = user?.user_metadata?.global_name
+  const secondName = user?.user_metadata?.full_name
   const handle = user?.user_metadata?.name || "discord_user"
 
   return (
