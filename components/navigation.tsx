@@ -13,7 +13,6 @@ import {
 import Image from "next/image"
 import Link from "next/link"
 import { LogOut, User } from "lucide-react"
-// Importamos el cliente que creamos nosotros en la carpeta lib
 import { supabase } from "@/lib/supabase"
 
 export function Navigation() {
@@ -26,7 +25,6 @@ export function Navigation() {
       setScrolled(window.scrollY > 50)
     }
 
-    // Comprobar sesión actual
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
@@ -35,7 +33,6 @@ export function Navigation() {
 
     checkUser()
 
-    // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
@@ -48,18 +45,17 @@ export function Navigation() {
   }, [])
 
   const login = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     })
-    if (error) console.error("Error al loguear:", error.message)
   }
 
   const logout = async () => {
     await supabase.auth.signOut()
-    setUser(null)
+    // No hace falta recargar, el onAuthStateChange detectará que user es null
   }
 
   const scrollToSection = (id: string) => {
@@ -69,7 +65,11 @@ export function Navigation() {
     }
   }
 
-  const userMetadata = user?.user_metadata
+  // Lógica mejorada para extraer datos de Discord
+  // Discord guarda los datos en user_metadata
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || "/placeholder.svg"
+  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.custom_claims?.global_name || user?.user_metadata?.name || "Usuario"
+  const handle = user?.user_metadata?.name || "discord_user"
 
   return (
     <nav
@@ -116,6 +116,7 @@ export function Navigation() {
           >
             CONTENIDO
           </button>
+          
           <Button
             asChild
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold tracking-wide"
@@ -127,38 +128,44 @@ export function Navigation() {
           </Button>
 
           {!loading && (
-            <>
+            <div className="ml-4 border-l border-white/10 pl-4">
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <button className="flex items-center gap-3 hover:opacity-80 transition-opacity focus:outline-none">
                       <Image
-                        src={userMetadata?.avatar_url || "/placeholder.svg"}
-                        alt={userMetadata?.full_name || "Usuario"}
-                        width={40}
-                        height={40}
-                        className="rounded-full border-2 border-primary"
+                        src={avatarUrl}
+                        alt={displayName}
+                        width={36}
+                        height={36}
+                        className="rounded-full border-2 border-primary object-cover"
                       />
-                      <span className="text-sm font-medium text-foreground">
-                        {userMetadata?.full_name || userMetadata?.name}
-                      </span>
+                      <div className="flex flex-col items-start leading-tight">
+                        <span className="text-sm font-bold text-white tracking-tight">
+                          {displayName}
+                        </span>
+                        <span className="text-[10px] text-primary font-medium uppercase tracking-wider">
+                          Conectado
+                        </span>
+                      </div>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-white">
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{userMetadata?.full_name}</p>
-                        <p className="text-xs leading-none text-muted-foreground">
-                          @{userMetadata?.name}
-                        </p>
+                        <p className="text-sm font-medium">{displayName}</p>
+                        <p className="text-xs text-zinc-400">@{handle}</p>
                       </div>
                     </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <User className="mr-2 h-4 w-4" />
+                    <DropdownMenuSeparator className="bg-zinc-800" />
+                    <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800 focus:text-white">
+                      <User className="mr-2 h-4 w-4 text-primary" />
                       <span>Perfil</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={logout} className="text-red-600">
+                    <DropdownMenuItem 
+                      onClick={logout} 
+                      className="text-red-500 hover:bg-red-500/10 cursor-pointer focus:bg-red-500/10 focus:text-red-500"
+                    >
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Cerrar Sesión</span>
                     </DropdownMenuItem>
@@ -167,19 +174,13 @@ export function Navigation() {
               ) : (
                 <Button
                   onClick={login}
-                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold tracking-wide flex items-center gap-2"
+                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold tracking-wide flex items-center gap-2 px-6"
                 >
                   LOGIN
-                  <Image 
-                    src="/discord-logo.png" 
-                    alt="Discord" 
-                    width={20} 
-                    height={20} 
-                    className="ml-2 inline-block" 
-                  />
+                  <Image src="/discord-logo.png" alt="Discord" width={18} height={18} />
                 </Button>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>
