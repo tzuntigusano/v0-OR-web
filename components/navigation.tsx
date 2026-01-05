@@ -150,7 +150,7 @@ export function Navigation() {
                       />
                       <div className="flex flex-col items-start justify-center leading-tight">
                         <span className="text-sm font-bold text-white tracking-tight">
-                          {secondName}
+                          {displayName}
                         </span>
                       </div>
                     </button>
