@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { Navigation } from "@/components/navigation"
-import { X, Upload, ChevronDown, Loader2, Trash2, CheckCircle2, Circle, Pin, PinOff, Files } from "lucide-react"
+import { X, Upload, ChevronDown, Loader2, Trash2, CheckCircle2, Circle, Pin, PinOff, Files, Save, Edit3 } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
@@ -41,6 +41,8 @@ export default function GalleryPage() {
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isSavingNames, setIsSavingNames] = useState(false)
+  const [editedNames, setEditedNames] = useState<{ [key: string]: string }>({}) // Guardar cambios temporales de nombres
   const [selectedImage, setSelectedImage] = useState<number | null>(null)
 
   // Estados de Filtro y UI
@@ -68,7 +70,7 @@ export default function GalleryPage() {
         const formatted = data.map((img: any) => ({
           id: img.id,
           src: img.url,
-          alt: img.alt,
+          alt: img.alt || "",
           fijada: img.fijada || false,
           stage: img.filtros_padre?.nombre || "",
           subcategory: img.filtros_hijo?.nombre || null
@@ -107,27 +109,17 @@ export default function GalleryPage() {
 
   // 3. LÓGICA DRAG & DROP GLOBAL
   const handleGlobalDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if ((userRole === 'admin' || userRole === 'editor') && !isSelectionMode) {
-      setIsDraggingGlobal(true)
-    }
+    e.preventDefault(); e.stopPropagation()
+    if ((userRole === 'admin' || userRole === 'editor') && !isSelectionMode) setIsDraggingGlobal(true)
   }
 
   const handleGlobalDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    // Solo quitamos el overlay si salimos del contenedor principal
-    if (e.currentTarget === e.target) {
-      setIsDraggingGlobal(false)
-    }
+    e.preventDefault(); e.stopPropagation()
+    if (e.currentTarget === e.target) setIsDraggingGlobal(false)
   }
 
   const handleGlobalDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDraggingGlobal(false)
-
+    e.preventDefault(); e.stopPropagation(); setIsDraggingGlobal(false)
     if ((userRole === 'admin' || userRole === 'editor') && !isSelectionMode) {
       const droppedFiles = Array.from(e.dataTransfer.files)
       if (droppedFiles.length > 0) {
@@ -137,7 +129,7 @@ export default function GalleryPage() {
     }
   }
 
-  // 4. ACCIONES ADMIN
+  // 4. ACCIONES ADMIN (BORRAR Y FIJAR)
   const handleSelectAll = () => {
     if (selectedIds.length === filteredImages.length) setSelectedIds([])
     else setSelectedIds(filteredImages.map(img => img.id))
@@ -146,9 +138,7 @@ export default function GalleryPage() {
   const toggleFijar = async (e: React.MouseEvent, imgId: string, currentStatus: boolean) => {
     e.stopPropagation();
     try {
-      if (!currentStatus) {
-        await supabase.from('imagenes_galeria').update({ fijada: false }).neq('id', imgId)
-      }
+      if (!currentStatus) await supabase.from('imagenes_galeria').update({ fijada: false }).neq('id', imgId)
       const { error } = await supabase.from('imagenes_galeria').update({ fijada: !currentStatus }).eq('id', imgId)
       if (error) throw error
       await fetchImages()
@@ -169,7 +159,23 @@ export default function GalleryPage() {
     } finally { setIsDeleting(false) }
   }
 
-  // 5. LÓGICA DE SUBIDA MÚLTIPLE
+  // 5. NUEVA ACCIÓN: GUARDAR NOMBRES EDITADOS
+  const handleSaveAllChanges = async () => {
+    const entries = Object.entries(editedNames)
+    if (entries.length === 0) { setIsSelectionMode(false); return }
+    
+    setIsSavingNames(true)
+    try {
+      for (const [id, newAlt] of entries) {
+        await supabase.from('imagenes_galeria').update({ alt: newAlt }).eq('id', id)
+      }
+      setEditedNames({}); setIsSelectionMode(false); await fetchImages()
+    } catch (error) {
+      alert("Error al guardar cambios")
+    } finally { setIsSavingNames(false) }
+  }
+
+  // 6. LÓGICA DE SUBIDA MÚLTIPLE
   const handleUploadSubmit = async () => {
     if (uploadData.files.length === 0 || !user) return
     setIsUploading(true)
@@ -179,14 +185,10 @@ export default function GalleryPage() {
       for (let i = 0; i < uploadData.files.length; i++) {
         const file = uploadData.files[i]
         setUploadProgress(prev => ({ ...prev, current: i + 1 }))
-
         const options = { maxSizeMB: 0.8, maxWidthOrHeight: 1920 }
         const compressed = await imageCompression(file, options)
         const path = `${user.id}/${Math.random().toString(36).substring(2)}`
-        
-        const { error: storageError } = await supabase.storage.from('galeria').upload(path, compressed)
-        if (storageError) throw storageError
-
+        await supabase.storage.from('galeria').upload(path, compressed)
         const { data: { publicUrl } } = supabase.storage.from('galeria').getPublicUrl(path)
         
         await supabase.from('imagenes_galeria').insert([{
@@ -197,15 +199,8 @@ export default function GalleryPage() {
           subido_por: user.id
         }])
       }
-      
-      setUploadData(p => ({...p, files: [], alt: ""})); 
-      setShowUploadModal(false); 
-      await fetchImages()
-    } catch (error) {
-      alert("Error durante la transmisión múltiple")
-    } finally {
-      setIsUploading(false)
-    }
+      setUploadData(p => ({...p, files: [], alt: ""})); setShowUploadModal(false); await fetchImages()
+    } finally { setIsUploading(false) }
   }
 
   // Lógica Filtrado Grid
@@ -229,7 +224,7 @@ export default function GalleryPage() {
         <div className="fixed inset-0 z-[200] bg-primary/20 backdrop-blur-md border-[6px] border-dashed border-primary flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
           <div className="bg-black/80 p-10 rounded-3xl border-2 border-primary flex flex-col items-center gap-6 shadow-[0_0_50px_rgba(var(--primary),0.3)]">
             <Upload className="w-20 h-20 text-primary animate-bounce" />
-            <h2 className="text-3xl font-black text-primary uppercase tracking-[0.2em] italic">Soltar archivos para cargar</h2>
+            <h2 className="text-3xl font-black text-primary uppercase tracking-[0.2em] italic">Soltar para iniciar carga</h2>
           </div>
         </div>
       )}
@@ -249,17 +244,20 @@ export default function GalleryPage() {
             <div className="flex flex-wrap justify-center gap-3">
               {!isSelectionMode ? (
                 <Button onClick={() => setIsSelectionMode(true)} variant="outline" className="border-red-500/50 text-red-500 hover:bg-red-500/10">
-                  <Trash2 className="w-4 h-4 mr-2" /> Gestionar Galería
+                  <Edit3 className="w-4 h-4 mr-2" /> Gestionar Galería
                 </Button>
               ) : (
                 <>
                   <Button onClick={handleSelectAll} variant="secondary" className="font-bold border-2 border-primary/20">
                     {selectedIds.length === filteredImages.length ? "Deseleccionar Todo" : "Seleccionar Todo"}
                   </Button>
+                  <Button onClick={handleSaveAllChanges} disabled={isSavingNames} className="bg-emerald-600 text-white font-bold px-6 border-2 border-emerald-400/50">
+                    {isSavingNames ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 w-4 h-4" />} Guardar Nombres
+                  </Button>
                   <Button onClick={handleDeleteSelected} disabled={selectedIds.length === 0 || isDeleting} className="bg-red-600 text-white font-bold px-6">
                     {isDeleting ? <Loader2 className="animate-spin mr-2" /> : <Trash2 className="mr-2 w-4 h-4" />} Borrar ({selectedIds.length})
                   </Button>
-                  <Button onClick={() => { setIsSelectionMode(false); setSelectedIds([]) }} variant="ghost">Cancelar</Button>
+                  <Button onClick={() => { setIsSelectionMode(false); setSelectedIds([]); setEditedNames({}) }} variant="ghost">Cancelar</Button>
                 </>
               )}
             </div>
@@ -294,14 +292,18 @@ export default function GalleryPage() {
           ) : filteredImages.length > 0 ? (
             filteredImages.map((img, idx) => {
               const isSel = selectedIds.includes(img.id)
+              const currentName = editedNames[img.id] !== undefined ? editedNames[img.id] : img.alt;
+
               return (
-                <div key={img.id} onClick={() => isSelectionMode ? setSelectedIds(prev => prev.includes(img.id) ? prev.filter(i => i !== img.id) : [...prev, img.id]) : setSelectedImage(idx)}
+                <div key={img.id} 
+                  onClick={() => isSelectionMode ? setSelectedIds(prev => prev.includes(img.id) ? prev.filter(i => i !== img.id) : [...prev, img.id]) : setSelectedImage(idx)}
                   className={`group relative aspect-video overflow-hidden rounded border-2 transition-all cursor-pointer ${isSel ? "border-primary ring-4 ring-primary/20 scale-[0.98]" : "border-primary/10 hover:border-primary"}`}>
                   
                   <Image src={img.src} alt={img.alt} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
 
+                  {/* Pins y Checks */}
                   {img.fijada && <div className="absolute top-3 left-3 bg-primary text-black p-1.5 rounded-md shadow-lg z-10 animate-in fade-in zoom-in"><Pin className="w-4 h-4 fill-black" /></div>}
-
+                  
                   {userRole === 'admin' && !isSelectionMode && (
                     <button onClick={(e) => toggleFijar(e, img.id, img.fijada)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary z-20">
                       {img.fijada ? <PinOff className="w-5 h-5" /> : <Pin className="w-5 h-5" />}
@@ -312,12 +314,23 @@ export default function GalleryPage() {
                     <div className="absolute top-4 right-4 z-20">{isSel ? <CheckCircle2 className="w-8 h-8 text-primary fill-black" /> : <Circle className="w-8 h-8 text-white/50" />}</div>
                   )}
 
-                  {!isSelectionMode && (
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="text-[10px] font-bold text-primary uppercase mb-1">{img.stage} {img.subcategory && `// ${img.subcategory}`}</p>
+                  {/* Overlay de información / Edición */}
+                  <div className={`absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent flex flex-col justify-end p-5 transition-opacity ${isSelectionMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                    <p className="text-[10px] font-bold text-primary uppercase mb-1 tracking-tighter">{img.stage} {img.subcategory && `// ${img.subcategory}`}</p>
+                    
+                    {isSelectionMode ? (
+                      <input 
+                        type="text" 
+                        value={currentName}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setEditedNames({ ...editedNames, [img.id]: e.target.value })}
+                        className="w-full bg-white/10 border border-primary/30 rounded px-2 py-1 text-sm text-white outline-none focus:border-primary placeholder:text-white/20"
+                        placeholder="Nombre de imagen..."
+                      />
+                    ) : (
                       <p className="text-white text-sm font-medium truncate">{img.alt || "Sin descripción"}</p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )
             })
@@ -326,7 +339,7 @@ export default function GalleryPage() {
           )}
         </div>
 
-        {/* --- MODAL CARGA MÚLTIPLE (Manteniendo el formato solicitado) --- */}
+        {/* --- MODAL CARGA MÚLTIPLE --- */}
         {showUploadModal && (
           <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4 animate-in zoom-in duration-200" onClick={() => setShowUploadModal(false)}>
             <div className="bg-black border-2 border-primary/30 rounded-lg p-8 max-w-md w-full" onClick={e => e.stopPropagation()}>
@@ -372,7 +385,7 @@ export default function GalleryPage() {
                 </div>
 
                 {uploadData.files.length > 0 && (
-                  <div className="bg-primary/5 border border-primary/20 rounded p-3 max-h-32 overflow-y-auto custom-scrollbar">
+                  <div className="bg-primary/5 border border-primary/20 rounded p-3 max-h-32 overflow-y-auto">
                     {uploadData.files.map((f, i) => (
                       <div key={i} className="text-[10px] text-primary/70 flex justify-between uppercase mb-1 last:mb-0">
                         <span className="truncate pr-4">{f.name}</span>
@@ -382,7 +395,7 @@ export default function GalleryPage() {
                   </div>
                 )}
 
-                <Button onClick={handleUploadSubmit} disabled={uploadData.files.length === 0 || isUploading} className="w-full bg-primary text-black font-black py-7 uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(var(--primary),0.2)]">
+                <Button onClick={handleUploadSubmit} disabled={uploadData.files.length === 0 || isUploading} className="w-full bg-primary text-black font-black py-7 uppercase tracking-[0.2em]">
                   {isUploading ? (
                     <div className="flex flex-col items-center">
                       <Loader2 className="animate-spin mb-1" />
@@ -399,7 +412,10 @@ export default function GalleryPage() {
         {selectedImage !== null && !isSelectionMode && (
           <div className="fixed inset-0 bg-black/98 z-[400] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setSelectedImage(null)}>
             <div className="relative w-full h-full flex items-center justify-center">
-              <Image src={filteredImages[selectedImage].src} alt="View" width={1920} height={1080} className="object-contain max-h-full w-auto" />
+              <Image src={filteredImages[selectedImage].src} alt="View" width={1920} height={1080} className="object-contain max-h-full w-auto shadow-2xl" />
+              <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/80 px-8 py-3 rounded-full border border-primary/30 backdrop-blur-md">
+                <p className="text-primary font-bold tracking-[0.2em] uppercase text-sm italic">{filteredImages[selectedImage].alt || "Captura de Flota"}</p>
+              </div>
             </div>
             <button className="absolute top-8 right-8 text-white/50 hover:text-white transition-colors"><X className="w-12 h-12" /></button>
           </div>
