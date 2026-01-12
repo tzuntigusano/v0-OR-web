@@ -227,7 +227,7 @@ export default function GalleryPage() {
         <div className="flex flex-col items-center gap-4 mb-12">
           {isAdmin && !isSelectionMode && (
             <Button onClick={() => setShowUploadModal(true)} className="bg-primary text-black font-bold px-8 py-6 text-lg uppercase tracking-tighter hover:bg-primary/80 transition-all">
-              <Files className="mr-2 w-6 h-6" /> Carga Múltiple
+              <Files className="mr-2 w-6 h-6" /> Subir Imagen
             </Button>
           )}
 
