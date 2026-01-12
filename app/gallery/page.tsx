@@ -48,63 +48,66 @@ export default function GalleryPage() {
     file: null as File | null,
   })
 
-  // 1. CARGA DE DATOS INICIAL (Filtros y Usuario mejorado)
+  // 1. CARGA DE FILTROS (Independiente del usuario)
   useEffect(() => {
-    async function initializePage() {
-      try {
-        setLoading(true)
+    async function loadFilters() {
+      const { data: filtersData } = await supabase
+        .from('filtros_padre')
+        .select(`id, nombre, filtros_hijo (id, nombre)`)
+        .order('orden', { ascending: true })
 
-        // A. Verificar Sesión y Usuario de Discord
-        const { data: { session } } = await supabase.auth.getSession()
-        const currentUser = session?.user ?? null
-        setUser(currentUser)
-
-        if (currentUser) {
-          console.log("ID Usuario Discord:", currentUser.id)
-          
-          // Consultar rol en la tabla user_roles
-          const { data: roleData, error: roleError } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', currentUser.id)
-            .maybeSingle()
-
-          if (roleData) {
-            console.log("Rol asignado:", roleData.role)
-            setUserRole(roleData.role)
-          } else {
-            console.warn("Usuario logueado pero no encontrado en user_roles")
-          }
+      if (filtersData) {
+        const listaLimpia = filtersData.filter(f => f.nombre.toUpperCase() !== "TODOS")
+        setFiltros(listaLimpia)
+        if (listaLimpia.length > 0) {
+          setUploadData(prev => ({
+            ...prev,
+            padreId: listaLimpia[0].id,
+            hijoId: listaLimpia[0].filtros_hijo?.[0]?.id || ""
+          }))
         }
-
-        // B. Cargar Filtros de la DB
-        const { data: filtersData } = await supabase
-          .from('filtros_padre')
-          .select(`id, nombre, filtros_hijo (id, nombre)`)
-          .order('orden', { ascending: true })
-
-        if (filtersData) {
-          const listaLimpia = filtersData.filter(f => f.nombre.toUpperCase() !== "TODOS")
-          setFiltros(listaLimpia)
-          
-          if (listaLimpia.length > 0) {
-            setUploadData(prev => ({
-              ...prev,
-              padreId: listaLimpia[0].id,
-              hijoId: listaLimpia[0].filtros_hijo?.[0]?.id || ""
-            }))
-          }
-        }
-      } catch (err) {
-        console.error("Error inicializando:", err)
-      } finally {
-        setLoading(false)
       }
+      setLoading(false)
     }
-    initializePage()
+    loadFilters()
   }, [])
 
-  // 2. LÓGICA DE FILTRADO (Mantenida vacía hasta conectar la grid real)
+  // 2. CONTROL DE SESIÓN Y ROLES (Reactivo al login/logout)
+  useEffect(() => {
+    // Función para obtener el rol
+    const fetchRole = async (userId: string) => {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle()
+      if (data) setUserRole(data.role)
+    }
+
+    // Escuchar cambios en la autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+      
+      if (currentUser) {
+        fetchRole(currentUser.id)
+      } else {
+        setUserRole(null) // Limpiar rol al desloguear
+      }
+    })
+
+    // Comprobación inicial
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUser(user)
+        fetchRole(user.id)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // 3. LÓGICA DE FILTRADO (Mantenida vacía hasta conectar la grid real)
   const galleryImages: any[] = [] 
 
   const handleFilterSelect = (stage: string, subcategory: string | null = null) => {
@@ -112,7 +115,7 @@ export default function GalleryPage() {
     setHoveredStage(null)
   }
 
-  // 3. LÓGICA DE SUBIDA (Storage + DB)
+  // 4. LÓGICA DE SUBIDA (Storage + DB)
   const handleUploadSubmit = async () => {
     if (!uploadData.file || !uploadData.padreId || !user) return
 
@@ -164,11 +167,11 @@ export default function GalleryPage() {
           </h1>
         </div>
 
-        {/* --- BOTÓN SUBIDA (Visible solo para Admin/Editor) --- */}
+        {/* --- BOTÓN SUBIDA ACTUALIZADO --- */}
         {(userRole === 'admin' || userRole === 'editor') && (
           <div className="flex justify-center mb-12">
             <Button onClick={() => setShowUploadModal(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 py-6 gap-2 text-lg">
-              <Upload className="w-6 h-6" /> SUBIR NUEVA CAPTURA
+              <Upload className="w-6 h-6" /> SUBIR IMAGEN
             </Button>
           </div>
         )}
@@ -200,7 +203,6 @@ export default function GalleryPage() {
                         {padre.nombre} {tieneHijos && <ChevronDown className="w-4 h-4" />}
                       </button>
 
-                      {/* DESPLEGABLE CON BORDE IZQUIERDO ALINEADO (left-0) */}
                       {hoveredStage === padre.nombre && tieneHijos && (
                         <div className="absolute top-full left-0 pt-2 w-64 z-50">
                           <div className="bg-black border-2 border-primary/30 rounded shadow-2xl backdrop-blur-md overflow-hidden">
@@ -220,7 +222,7 @@ export default function GalleryPage() {
           </div>
         </div>
 
-        {/* --- GRID (VACÍA POR AHORA) --- */}
+        {/* --- GRID (VACÍA) --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
            {!loading && <p className="col-span-full text-center text-foreground/30 py-20">Selecciona un filtro para ver las capturas.</p>}
         </div>
@@ -257,7 +259,7 @@ export default function GalleryPage() {
 
                 <Button onClick={handleUploadSubmit} disabled={!uploadData.file || isUploading} className="w-full bg-primary hover:bg-primary/90 py-6 font-bold uppercase tracking-widest">
                   {isUploading ? <Loader2 className="animate-spin mr-2" /> : <Upload className="mr-2 w-5 h-5" />}
-                  {isUploading ? "Subiendo..." : "Guardar en Flota"}
+                  {isUploading ? "Subiendo..." : "Guardar Imagen"}
                 </Button>
               </div>
             </div>
