@@ -2,21 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
-import { Loader2, Calendar, ImageIcon, AlertCircle, ChevronDown } from "lucide-react"
+import { Loader2, Calendar, ImageIcon, AlertCircle } from "lucide-react"
 import Image from "next/image"
-import { supabase } from "@/lib/supabase" // Asegúrate de tener exportado 'supabase' en lib/supabase
-
-// --- Interfaces ---
-interface FiltroHijo {
-  id: string
-  nombre: string
-}
-
-interface FiltroPadre {
-  id: string
-  nombre: string
-  filtros_hijo: FiltroHijo[]
-}
 
 interface DiscordMessage {
   id: string
@@ -35,46 +22,30 @@ interface DiscordMessage {
 export default function PublicCommsPage() {
   const [loading, setLoading] = useState(true)
   const [messages, setMessages] = useState<DiscordMessage[]>([])
-  const [filtros, setFiltros] = useState<FiltroPadre[]>([]) // Estado para los filtros de Supabase
-  const [activeFilter, setActiveFilter] = useState("TODOS")
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchDiscordData = async () => {
       try {
         setLoading(true)
-        
-        // 1. Cargar Filtros de Supabase
-        const { data: filtrosData, error: dbError } = await supabase
-          .from('filtros_padre')
-          .select(`
-            id,
-            nombre,
-            filtros_hijo (
-              id,
-              nombre
-            )
-          `)
-          .order('orden', { ascending: true });
-
-        if (dbError) throw dbError;
-        setFiltros(filtrosData || []);
-
-        // 2. Cargar Mensajes de Discord (Tu API interna)
+        // Llamamos a nuestra API interna (que crearemos en /api/discord/route.ts)
         const response = await fetch("/api/discord")
-        if (!response.ok) throw new Error("No se pudieron cargar las comunicaciones")
+        
+        if (!response.ok) {
+          throw new Error("No se pudieron cargar las comunicaciones")
+        }
+
         const data = await response.json()
         setMessages(data)
-
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error desconocido")
-        console.error("Error fetching data:", err)
+        console.error("Error fetching Discord messages:", err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchData()
+    fetchDiscordData()
   }, [])
 
   const formatDate = (timestamp: string) => {
@@ -94,78 +65,20 @@ export default function PublicCommsPage() {
   }
 
   return (
-    <main className="relative min-h-screen bg-background text-foreground">
+    <main className="relative min-h-screen bg-background">
       <Navigation />
 
       <div className="container mx-auto px-4 py-24">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="text-center mb-12 space-y-4">
-            <h1 className="text-4xl md:text-6xl font-bold tracking-wider">
+            <h1 className="text-4xl md:text-6xl font-bold text-foreground tracking-wider">
               PUBLIC <span className="text-primary">COMMS</span>
             </h1>
             <p className="text-foreground/70 text-lg max-w-2xl mx-auto leading-relaxed">
-              Gestión de flota y comunicaciones del centro de mando.
+              Mensajes en tiempo real desde nuestro centro de mando en Discord. 
+              Actualizaciones oficiales y reportes de misión.
             </p>
-          </div>
-
-          {/* --- SECCIÓN DE FILTROS DINÁMICOS --- */}
-          <div className="flex flex-wrap gap-2 justify-center mb-12">
-            {/* Botón Siempre Fijo: TODOS */}
-            <button
-              onClick={() => setActiveFilter("TODOS")}
-              className={`px-4 py-2 rounded-md transition-all border ${
-                activeFilter === "TODOS" 
-                ? "bg-primary text-primary-foreground border-primary" 
-                : "bg-transparent border-border hover:border-primary/50"
-              }`}
-            >
-              TODOS
-            </button>
-
-            {/* Mapeo de Filtros desde Supabase */}
-            {filtros.map((padre) => {
-              const tieneHijos = padre.filtros_hijo && padre.filtros_hijo.length > 0;
-
-              if (!tieneHijos) {
-                return (
-                  <button
-                    key={padre.id}
-                    onClick={() => setActiveFilter(padre.nombre)}
-                    className={`px-4 py-2 rounded-md transition-all border ${
-                      activeFilter === padre.nombre 
-                      ? "bg-primary text-primary-foreground border-primary" 
-                      : "bg-transparent border-border hover:border-primary/50"
-                    }`}
-                  >
-                    {padre.nombre}
-                  </button>
-                );
-              }
-
-              // Si tiene hijos, renderiza el desplegable (Lógica Hover con Tailwind 'group')
-              return (
-                <div key={padre.id} className="relative group">
-                  <button className="px-4 py-2 rounded-md border border-border flex items-center gap-2 group-hover:border-primary/50 transition-all">
-                    {padre.nombre}
-                    <ChevronDown className="w-4 h-4 transition-transform group-hover:rotate-180" />
-                  </button>
-
-                  {/* Menú Desplegable */}
-                  <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-50 min-w-[160px] bg-card border border-border rounded-lg shadow-xl overflow-hidden">
-                    {padre.filtros_hijo.map((hijo) => (
-                      <button
-                        key={hijo.id}
-                        onClick={() => setActiveFilter(hijo.nombre)}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-primary hover:text-primary-foreground transition-colors"
-                      >
-                        {hijo.nombre}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
           </div>
 
           {/* Error State */}
@@ -180,20 +93,20 @@ export default function PublicCommsPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-foreground/70 font-medium tracking-wide">Sincronizando sistemas...</p>
+              <p className="text-foreground/70 font-medium tracking-wide">Sincronizando con Discord...</p>
             </div>
           ) : (
             <div className="space-y-6">
               {messages.length === 0 && !error && (
-                <p className="text-center text-foreground/50">No hay registros disponibles.</p>
+                <p className="text-center text-foreground/50">No hay mensajes recientes en este canal.</p>
               )}
               
-              {/* Aquí podrías filtrar los mensajes si tuvieran una propiedad que coincida con activeFilter */}
               {messages.map((message) => (
                 <article
                   key={message.id}
                   className="bg-card border border-border rounded-lg p-6 transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
                 >
+                  {/* Author Header */}
                   <div className="flex items-start gap-4 mb-4">
                     <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-primary/30 flex-shrink-0">
                       <Image
@@ -212,14 +125,19 @@ export default function PublicCommsPage() {
                     </div>
                   </div>
 
+                  {/* Message Content */}
                   <div className="text-foreground/80 leading-relaxed text-base mb-4 md:pl-16">
                     {message.content || <span className="italic opacity-50 text-sm">Contenido multimedia únicamente</span>}
                   </div>
 
+                  {/* Attachments */}
                   {message.attachments && message.attachments.length > 0 && (
                     <div className="md:pl-16 space-y-3">
                       {message.attachments.map((attachment, index) => (
-                        <div key={index} className="relative rounded-lg overflow-hidden border border-border group cursor-pointer">
+                        <div
+                          key={index}
+                          className="relative rounded-lg overflow-hidden border border-border group cursor-pointer"
+                        >
                           <div className="relative aspect-video w-full max-w-2xl">
                             <Image
                               src={attachment.url}
@@ -228,6 +146,12 @@ export default function PublicCommsPage() {
                               className="object-cover transition-transform group-hover:scale-105"
                             />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                            <div className="flex items-center gap-2 text-white text-sm">
+                              <ImageIcon className="w-4 h-4" />
+                              <span className="truncate">{attachment.filename}</span>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -240,14 +164,17 @@ export default function PublicCommsPage() {
 
           {/* Call to Action */}
           <div className="mt-12 text-center border-t border-border pt-12">
-            <p className="text-foreground/60 mb-6 text-sm tracking-wide">¿Consultas sobre la flota?</p>
+            <p className="text-foreground/60 mb-6 text-sm tracking-wide">¿Quieres participar en las conversaciones?</p>
             <a
-              href="https://discord.gg/TU_LINK"
+              href="https://discord.gg/TU_LINK_DE_INVITACION"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold tracking-wide px-8 py-4 rounded-lg transition-all shadow-lg hover:shadow-primary/50"
             >
-              Acceder al Roster
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
+              </svg>
+              Únete a Discord
             </a>
           </div>
         </div>
