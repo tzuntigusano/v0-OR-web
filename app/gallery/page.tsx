@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { X, Upload, ChevronDown, Loader2, Trash2, CheckCircle2, Circle, Pin, PinOff, Files, Save, Edit3 } from "lucide-react"
 import Image from "next/image"
@@ -154,28 +154,22 @@ export default function GalleryPage() {
     } finally { setIsDeleting(false) }
   }
 
-  // 5. GUARDADO CONDICIONAL
   const handleSaveAllChanges = async () => {
     const entries = Object.entries(editedNames)
     if (entries.length === 0) return
-    
     setIsSavingNames(true)
     try {
       for (const [id, newAlt] of entries) {
         await supabase.from('imagenes_galeria').update({ alt: newAlt.trim() }).eq('id', id)
       }
       setEditedNames({}); setIsSelectionMode(false); await fetchImages()
-    } catch (error) {
-      alert("Error al guardar cambios")
     } finally { setIsSavingNames(false) }
   }
 
-  // 6. LÓGICA DE SUBIDA MÚLTIPLE
   const handleUploadSubmit = async () => {
     if (uploadData.files.length === 0 || !user) return
     setIsUploading(true)
     setUploadProgress({ current: 0, total: uploadData.files.length })
-
     try {
       for (let i = 0; i < uploadData.files.length; i++) {
         const file = uploadData.files[i]
@@ -185,7 +179,6 @@ export default function GalleryPage() {
         const path = `${user.id}/${Math.random().toString(36).substring(2)}`
         await supabase.storage.from('galeria').upload(path, compressed)
         const { data: { publicUrl } } = supabase.storage.from('galeria').getPublicUrl(path)
-        
         await supabase.from('imagenes_galeria').insert([{
           url: publicUrl, 
           alt: uploadData.alt.trim(), 
@@ -204,7 +197,8 @@ export default function GalleryPage() {
       ? images.filter((img) => img.stage === filter.stage && img.subcategory === filter.subcategory)
       : images.filter((img) => img.stage === filter.stage)
 
-  // NUEVO: Comprobar si hay cambios pendientes
+  // Constantes de permisos y estado
+  const isAdmin = userRole === 'admin' || userRole === 'editor';
   const hasPendingChanges = Object.keys(editedNames).length > 0;
 
   return (
@@ -216,6 +210,7 @@ export default function GalleryPage() {
     >
       <Navigation />
 
+      {/* --- OVERLAY GLOBAL DE ARRASTRE --- */}
       {isDraggingGlobal && (
         <div className="fixed inset-0 z-[200] bg-primary/20 backdrop-blur-md border-[6px] border-dashed border-primary flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
           <div className="bg-black/80 p-10 rounded-3xl border-2 border-primary flex flex-col items-center gap-6 shadow-[0_0_50px_rgba(var(--primary),0.3)]">
@@ -230,9 +225,9 @@ export default function GalleryPage() {
 
         {/* --- PANEL DE ACCIONES --- */}
         <div className="flex flex-col items-center gap-4 mb-12">
-          {(userRole === 'admin' || userRole === 'editor') && !isSelectionMode && (
+          {isAdmin && !isSelectionMode && (
             <Button onClick={() => setShowUploadModal(true)} className="bg-primary text-black font-bold px-8 py-6 text-lg uppercase tracking-tighter hover:bg-primary/80 transition-all">
-              <Files className="mr-2 w-6 h-6" /> Subir Imagen
+              <Files className="mr-2 w-6 h-6" /> Carga Múltiple
             </Button>
           )}
 
@@ -248,9 +243,8 @@ export default function GalleryPage() {
                     {selectedIds.length === filteredImages.length ? "Deseleccionar Todo" : "Seleccionar Todo"}
                   </Button>
                   
-                  {/* CAMBIO: Renderizado condicional del botón de guardar */}
                   {hasPendingChanges && (
-                    <Button onClick={handleSaveAllChanges} disabled={isSavingNames} className="bg-emerald-600 text-white font-bold px-6 border-2 border-emerald-400/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <Button onClick={handleSaveAllChanges} disabled={isSavingNames} className="bg-emerald-600 text-white font-bold px-6 border-2 border-emerald-400/50 animate-in fade-in slide-in-from-top-2">
                       {isSavingNames ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 w-4 h-4" />} Guardar Nombres
                     </Button>
                   )}
@@ -303,9 +297,14 @@ export default function GalleryPage() {
                   
                   <Image src={img.src} alt={img.alt} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
 
-                  {img.fijada && <div className="absolute top-3 left-3 bg-primary text-black p-1.5 rounded-md shadow-lg z-10"><Pin className="w-4 h-4 fill-black" /></div>}
-                  
-                  {userRole === 'admin' && !isSelectionMode && (
+                  {/* Icono fijada: Solo visible para Admin */}
+                  {img.fijada && isAdmin && (
+                    <div className="absolute top-3 left-3 bg-primary text-black p-1.5 rounded-md shadow-lg z-10 animate-in fade-in zoom-in">
+                      <Pin className="w-4 h-4 fill-black" />
+                    </div>
+                  )}
+
+                  {isAdmin && !isSelectionMode && (
                     <button onClick={(e) => toggleFijar(e, img.id, img.fijada)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary z-20">
                       {img.fijada ? <PinOff className="w-5 h-5" /> : <Pin className="w-5 h-5" />}
                     </button>
@@ -315,6 +314,7 @@ export default function GalleryPage() {
                     <div className="absolute top-4 right-4 z-20">{isSel ? <CheckCircle2 className="w-8 h-8 text-primary fill-black" /> : <Circle className="w-8 h-8 text-white/50" />}</div>
                   )}
 
+                  {/* Información Hover / Edición */}
                   <div className={`absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent flex flex-col justify-end p-5 transition-opacity ${isSelectionMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                     <p className="text-[10px] font-bold text-primary uppercase mb-1 tracking-tighter">{img.stage} {img.subcategory && `// ${img.subcategory}`}</p>
                     
@@ -374,8 +374,8 @@ export default function GalleryPage() {
                   <label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Capturas</label>
                   <input type="file" id="file-upload-multiple" accept="image/*" multiple className="hidden" 
                     onChange={e => e.target.files && setUploadData({...uploadData, files: Array.from(e.target.files)})} />
-                  <label htmlFor="file-upload-multiple" className="flex flex-col items-center justify-center w-full bg-zinc-900 border-2 border-dashed border-primary/20 hover:border-primary/50 rounded-lg p-8 cursor-pointer transition-all gap-2">
-                    <Upload className="w-8 h-8 text-primary/40" />
+                  <label htmlFor="file-upload-multiple" className="flex flex-col items-center justify-center w-full bg-zinc-900 border-2 border-dashed border-primary/20 hover:border-primary/50 rounded-lg p-8 cursor-pointer transition-all gap-2 group">
+                    <Upload className="w-8 h-8 text-primary/40 group-hover:text-primary transition-colors" />
                     <span className="text-sm text-zinc-400">{uploadData.files.length > 0 ? `${uploadData.files.length} archivos` : "Arrastra o clica"}</span>
                   </label>
                 </div>
