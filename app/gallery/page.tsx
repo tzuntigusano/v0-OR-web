@@ -31,6 +31,8 @@ export default function GalleryPage() {
   })
   const [hoveredStage, setHoveredStage] = useState<string | null>(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
+  
+  // Estado para el Modal de Subida
   const [uploadData, setUploadData] = useState({
     stage: "",
     subcategory: "",
@@ -38,7 +40,7 @@ export default function GalleryPage() {
     file: null as File | null,
   })
 
-  // 1. Cargar filtros desde Supabase
+  // 1. CARGAR FILTROS DESDE SUPABASE
   useEffect(() => {
     async function loadFilters() {
       try {
@@ -58,14 +60,16 @@ export default function GalleryPage() {
         if (error) throw error;
         
         if (data) {
-          setFiltros(data);
-          // Inicializar datos de subida con el primer padre/hijo disponible
-          if (data.length > 0) {
+          const listaFiltros = data.filter(f => f.nombre.toUpperCase() !== "TODOS");
+          setFiltros(listaFiltros);
+          
+          // Inicializar el formulario con el primer padre e hijo de la DB
+          if (listaFiltros.length > 0) {
             setUploadData(prev => ({
               ...prev,
-              stage: data[0].nombre,
-              subcategory: data[0].filtros_hijo?.[0]?.nombre || ""
-            }))
+              stage: listaFiltros[0].nombre,
+              subcategory: listaFiltros[0].filtros_hijo?.[0]?.nombre || ""
+            }));
           }
         }
       } catch (err) {
@@ -77,14 +81,10 @@ export default function GalleryPage() {
     loadFilters()
   }, [])
 
-  // Datos de ejemplo (Esto debería venir de una tabla 'imagenes_galeria' en el futuro)
+  // 2. FILTRADO DE IMÁGENES (Ejemplo estático)
   const galleryImages = [
     { id: 1, src: "/outraiders-team-meeting.webp", alt: "Reunión táctica", stage: "ETAPA 1", subcategory: "Exploración Inicial" },
     { id: 2, src: "/star-citizen-spaceship-fleet-in-space-battle.jpg", alt: "Combate espacial", stage: "ETAPA 3", subcategory: "Batallas" },
-    { id: 3, src: "/star-citizen-pilot-in-cockpit-looking-at-space.jpg", alt: "Piloto en cabina", stage: "ETAPA 1", subcategory: "Primeras Misiones" },
-    { id: 4, src: "/star-citizen-space-station-exterior-view-with-ship.jpg", alt: "Estación espacial", stage: "ETAPA 2", subcategory: "Territorio" },
-    { id: 5, src: "/star-citizen-large-capital-ship-battle-formation.jpg", alt: "Naves capitales", stage: "ETAPA 4", subcategory: "Dominación" },
-    { id: 6, src: "/star-citizen-crew-members-working-together-in-ship.jpg", alt: "Equipo", stage: "ETAPA 2", subcategory: "Alianzas" },
   ]
 
   const filteredImages =
@@ -99,16 +99,21 @@ export default function GalleryPage() {
     setHoveredStage(null)
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setUploadData({ ...uploadData, file: e.target.files[0] })
-    }
-  }
+  // --- LÓGICA DEL MODAL ---
+  const handlePadreChange = (nombrePadre: string) => {
+    const padreSeleccionado = filtros.find(f => f.nombre === nombrePadre);
+    setUploadData({
+      ...uploadData,
+      stage: nombrePadre,
+      // Al cambiar el padre, ponemos automáticamente el primer hijo de ese nuevo padre
+      subcategory: padreSeleccionado?.filtros_hijo?.[0]?.nombre || ""
+    });
+  };
 
   const handleUploadSubmit = () => {
-    console.log("Subiendo...", uploadData)
-    alert(`Imagen guardada para ${uploadData.stage}`)
-    setShowUploadModal(false)
+    console.log("Datos listos para enviar a Supabase:", uploadData);
+    alert(`Enviando imagen a ${uploadData.stage} > ${uploadData.subcategory}`);
+    setShowUploadModal(false);
   }
 
   return (
@@ -120,163 +125,117 @@ export default function GalleryPage() {
           <h1 className="text-4xl md:text-6xl font-bold mb-4 tracking-wider">
             GALERÍA <span className="text-primary">OUTRAIDERS</span>
           </h1>
-          <p className="text-foreground/70 text-lg max-w-2xl mx-auto">
-            Momentos épicos de la flota gestionados dinámicamente.
-          </p>
         </div>
 
         <div className="flex justify-center mb-12">
-          <Button
-            onClick={() => setShowUploadModal(true)}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold tracking-wide px-6 py-3 gap-2"
-          >
-            <Upload className="w-5 h-5" />
-            SUBIR IMAGEN
+          <Button onClick={() => setShowUploadModal(true)} className="bg-primary font-bold tracking-wide px-6 py-3 gap-2">
+            <Upload className="w-5 h-5" /> SUBIR IMAGEN
           </Button>
         </div>
 
-        {/* --- SECCIÓN DE FILTROS DINÁMICOS --- */}
+        {/* --- FILTROS DE LA PÁGINA --- */}
         <div className="flex justify-center mb-12">
-          {/* max-w-6xl asegura que los filtros no sean más anchos que la grid de fotos */}
           <div className="flex flex-wrap gap-4 justify-center max-w-6xl w-full">
-            {loading ? (
-              <Loader2 className="animate-spin text-primary" />
-            ) : (
-              <>
-                {/* Botón TODOS Fijo */}
-                <button
-                  onClick={() => handleFilterSelect("TODOS")}
-                  className={`px-6 py-2 rounded border-2 transition-all font-medium tracking-wide ${
-                    filter.stage === "TODOS"
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-primary/30 text-foreground/80 hover:border-primary hover:text-primary"
-                  }`}
-                >
-                  TODOS
-                </button>
+            <button
+              onClick={() => handleFilterSelect("TODOS")}
+              className={`px-6 py-2 rounded border-2 transition-all font-medium ${
+                filter.stage === "TODOS" ? "bg-primary text-primary-foreground border-primary" : "border-primary/30 text-foreground/80 hover:border-primary"
+              }`}
+            >
+              TODOS
+            </button>
 
-                {/* Mapeo de Filtros (Evitando duplicado de TODOS) */}
-                {filtros
-                  .filter((f) => f.nombre.toUpperCase() !== "TODOS")
-                  .map((padre) => {
-                    const tieneHijos = padre.filtros_hijo && padre.filtros_hijo.length > 0;
-                    
-                    return (
-                      <div
-                        key={padre.id}
-                        className="relative"
-                        onMouseEnter={() => tieneHijos && setHoveredStage(padre.nombre)}
-                        onMouseLeave={() => setHoveredStage(null)}
-                      >
-                        <button
-                          onClick={() => handleFilterSelect(padre.nombre)}
-                          className={`px-6 py-2 rounded border-2 transition-all font-medium tracking-wide flex items-center gap-2 ${
-                            filter.stage === padre.nombre
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "border-primary/30 text-foreground/80 hover:border-primary hover:text-primary"
-                          }`}
-                        >
-                          {padre.nombre}
-                          {tieneHijos && <ChevronDown className="w-4 h-4" />}
+            {filtros.map((padre) => {
+              const tieneHijos = padre.filtros_hijo && padre.filtros_hijo.length > 0;
+              return (
+                <div key={padre.id} className="relative" onMouseEnter={() => tieneHijos && setHoveredStage(padre.nombre)} onMouseLeave={() => setHoveredStage(null)}>
+                  <button
+                    onClick={() => handleFilterSelect(padre.nombre)}
+                    className={`px-6 py-2 rounded border-2 transition-all font-medium flex items-center gap-2 ${
+                      filter.stage === padre.nombre ? "bg-primary text-primary-foreground border-primary" : "border-primary/30 text-foreground/80 hover:border-primary"
+                    }`}
+                  >
+                    {padre.nombre} {tieneHijos && <ChevronDown className="w-4 h-4" />}
+                  </button>
+                  {hoveredStage === padre.nombre && tieneHijos && (
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-64 bg-black/95 border-2 border-primary/30 rounded shadow-2xl z-50">
+                      {padre.filtros_hijo.map((hijo) => (
+                        <button key={hijo.id} onClick={() => handleFilterSelect(padre.nombre, hijo.nombre)} className="w-full text-left px-4 py-3 hover:bg-primary/20 hover:text-primary transition-colors text-sm border-b border-primary/10 last:border-b-0">
+                          {hijo.nombre}
                         </button>
-
-                        {/* Dropdown que salta de línea si es necesario */}
-                        {hoveredStage === padre.nombre && tieneHijos && (
-                          <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-64 bg-black/95 border-2 border-primary/30 rounded shadow-2xl backdrop-blur-md z-50">
-                            {padre.filtros_hijo.map((hijo) => (
-                              <button
-                                key={hijo.id}
-                                onClick={() => handleFilterSelect(padre.nombre, hijo.nombre)}
-                                className="w-full text-left px-4 py-3 hover:bg-primary/20 hover:text-primary transition-colors text-sm font-medium tracking-wide border-b border-primary/10 last:border-b-0"
-                              >
-                                {hijo.nombre}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </>
-            )}
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* --- GRID DE IMÁGENES --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {filteredImages.map((image, index) => (
-            <div
-              key={image.id}
-              className="group relative aspect-video overflow-hidden rounded border-2 border-primary/20 hover:border-primary transition-all duration-300 cursor-pointer"
-              onClick={() => setSelectedImage(index)}
-            >
-              <Image
-                src={image.src || "/placeholder.svg"}
-                alt={image.alt}
-                fill
-                className="object-cover transition-transform duration-500 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
-                <div>
-                  <p className="text-sm text-primary font-semibold tracking-wider mb-1">
-                    {image.stage} - {image.subcategory}
-                  </p>
-                  <p className="text-foreground font-medium">{image.alt}</p>
-                </div>
-              </div>
+            <div key={image.id} className="group relative aspect-video overflow-hidden rounded border-2 border-primary/20 hover:border-primary cursor-pointer" onClick={() => setSelectedImage(index)}>
+              <Image src={image.src} alt={image.alt} fill className="object-cover transition-transform group-hover:scale-110" />
             </div>
           ))}
         </div>
 
-        {/* --- MODAL SUBIDA --- */}
+        {/* --- MODAL DE SUBIDA DINÁMICO --- */}
         {showUploadModal && (
           <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4" onClick={() => setShowUploadModal(false)}>
             <div className="bg-black border-2 border-primary/30 rounded-lg p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-2xl font-bold mb-6">SUBIR IMAGEN</h2>
-              <div className="space-y-4">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold tracking-wider text-primary">SUBIR IMAGEN</h2>
+                <button onClick={() => setShowUploadModal(false)}><X className="w-6 h-6" /></button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Selector Padre */}
                 <div>
-                  <label className="block text-sm mb-2">ETAPA</label>
+                  <label className="block text-xs font-bold text-primary mb-2 uppercase">Categoría Principal</label>
                   <select
                     value={uploadData.stage}
-                    onChange={(e) => {
-                      const selected = filtros.find(f => f.nombre === e.target.value);
-                      setUploadData({...uploadData, stage: e.target.value, subcategory: selected?.filtros_hijo?.[0]?.nombre || ""});
-                    }}
-                    className="w-full bg-black border-2 border-primary/30 rounded px-4 py-2"
+                    onChange={(e) => handlePadreChange(e.target.value)}
+                    className="w-full bg-zinc-900 border-2 border-primary/20 rounded px-4 py-3 text-foreground focus:border-primary outline-none transition-all"
                   >
-                    {filtros.map(f => <option key={f.id} value={f.nombre}>{f.nombre}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm mb-2">SUBCATEGORÍA</label>
-                  <select
-                    value={uploadData.subcategory}
-                    onChange={(e) => setUploadData({...uploadData, subcategory: e.target.value})}
-                    className="w-full bg-black border-2 border-primary/30 rounded px-4 py-2"
-                  >
-                    {filtros.find(f => f.nombre === uploadData.stage)?.filtros_hijo.map(h => (
-                      <option key={h.id} value={h.nombre}>{h.nombre}</option>
+                    {filtros.map(f => (
+                      <option key={f.id} value={f.nombre}>{f.nombre}</option>
                     ))}
                   </select>
                 </div>
-                <input type="file" accept="image/*" onChange={handleFileChange} className="w-full py-2" />
-                <Button onClick={handleUploadSubmit} disabled={!uploadData.file} className="w-full">GUARDAR</Button>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* --- LIGHTBOX --- */}
-        {selectedImage !== null && (
-          <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
-            <button className="absolute top-4 right-4 text-foreground hover:text-primary"><X className="w-8 h-8" /></button>
-            <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center">
-              <Image 
-                src={filteredImages[selectedImage].src} 
-                alt={filteredImages[selectedImage].alt} 
-                width={1920} height={1080} 
-                className="object-contain max-h-full w-auto" 
-              />
+                {/* Selector Hijo (Dependiente del Padre) */}
+                <div>
+                  <label className="block text-xs font-bold text-primary mb-2 uppercase">Subcategoría</label>
+                  <select
+                    value={uploadData.subcategory}
+                    onChange={(e) => setUploadData({ ...uploadData, subcategory: e.target.value })}
+                    className="w-full bg-zinc-900 border-2 border-primary/20 rounded px-4 py-3 text-foreground focus:border-primary outline-none transition-all"
+                  >
+                    {filtros
+                      .find(f => f.nombre === uploadData.stage)
+                      ?.filtros_hijo.map(h => (
+                        <option key={h.id} value={h.nombre}>{h.nombre}</option>
+                      )) || <option value="">Sin subcategorías</option>
+                    }
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-primary mb-2 uppercase">Archivo de Imagen</label>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => e.target.files && setUploadData({ ...uploadData, file: e.target.files[0] })}
+                    className="w-full text-sm text-foreground/60 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-primary file:text-primary-foreground hover:file:bg-primary/90" 
+                  />
+                </div>
+
+                <Button onClick={handleUploadSubmit} disabled={!uploadData.file} className="w-full bg-primary hover:shadow-[0_0_20px_rgba(var(--primary),0.4)] transition-all py-6 font-bold text-lg">
+                  GUARDAR EN GALERÍA
+                </Button>
+              </div>
             </div>
           </div>
         )}
