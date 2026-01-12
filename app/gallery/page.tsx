@@ -21,10 +21,19 @@ interface FiltroPadre {
   filtros_hijo: FiltroHijo[]
 }
 
+interface GaleriaImagen {
+  id: string
+  src: string
+  alt: string
+  stage: string
+  subcategory: string | null
+}
+
 export default function GalleryPage() {
   // Estados de la Galería
   const [selectedImage, setSelectedImage] = useState<number | null>(null)
   const [filtros, setFiltros] = useState<FiltroPadre[]>([])
+  const [images, setImages] = useState<GaleriaImagen[]>([])
   const [loading, setLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
   
@@ -48,9 +57,43 @@ export default function GalleryPage() {
     file: null as File | null,
   })
 
-  // 1. CARGA DE FILTROS (Independiente del usuario)
+  // 1. CARGA DE IMÁGENES DESDE LA DB
+  async function fetchImages() {
+    try {
+      const { data, error } = await supabase
+        .from('imagenes_galeria')
+        .select(`
+          id,
+          url,
+          alt,
+          filtros_padre (nombre),
+          filtros_hijo (nombre)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const formatted = data.map((img: any) => ({
+          id: img.id,
+          src: img.url,
+          alt: img.alt,
+          stage: img.filtros_padre?.nombre || "",
+          subcategory: img.filtros_hijo?.nombre || null
+        }));
+        setImages(formatted);
+      }
+    } catch (err) {
+      console.error("Error cargando imágenes:", err);
+    }
+  }
+
+  // 2. INICIALIZACIÓN (Filtros, Usuario y Fotos)
   useEffect(() => {
-    async function loadFilters() {
+    async function initializePage() {
+      setLoading(true)
+      
+      // A. Cargar Filtros
       const { data: filtersData } = await supabase
         .from('filtros_padre')
         .select(`id, nombre, filtros_hijo (id, nombre)`)
@@ -67,55 +110,43 @@ export default function GalleryPage() {
           }))
         }
       }
+
+      // B. Cargar Imágenes Reales
+      await fetchImages();
       setLoading(false)
     }
-    loadFilters()
-  }, [])
 
-  // 2. CONTROL DE SESIÓN Y ROLES (Reactivo al login/logout)
-  useEffect(() => {
-    // Función para obtener el rol
+    initializePage()
+
+    // C. Control de Sesión Reactivo
     const fetchRole = async (userId: string) => {
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle()
+      const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle()
       if (data) setUserRole(data.role)
     }
 
-    // Escuchar cambios en la autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null
       setUser(currentUser)
-      
-      if (currentUser) {
-        fetchRole(currentUser.id)
-      } else {
-        setUserRole(null) // Limpiar rol al desloguear
-      }
-    })
-
-    // Comprobación inicial
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setUser(user)
-        fetchRole(user.id)
-      }
+      if (currentUser) fetchRole(currentUser.id)
+      else setUserRole(null)
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  // 3. LÓGICA DE FILTRADO (Mantenida vacía hasta conectar la grid real)
-  const galleryImages: any[] = [] 
+  // 3. LÓGICA DE FILTRADO EN EL FRONTEND
+  const filteredImages = filter.stage === "TODOS"
+    ? images
+    : filter.subcategory
+      ? images.filter((img) => img.stage === filter.stage && img.subcategory === filter.subcategory)
+      : images.filter((img) => img.stage === filter.stage)
 
   const handleFilterSelect = (stage: string, subcategory: string | null = null) => {
     setFilter({ stage, subcategory })
     setHoveredStage(null)
   }
 
-  // 4. LÓGICA DE SUBIDA (Storage + DB)
+  // 4. LÓGICA DE SUBIDA
   const handleUploadSubmit = async () => {
     if (!uploadData.file || !uploadData.padreId || !user) return
 
@@ -125,7 +156,7 @@ export default function GalleryPage() {
       const compressedFile = await imageCompression(uploadData.file, options)
 
       const fileExt = uploadData.file.name.split('.').pop()
-      const fileName = `${Math.random()}.${fileExt}`
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `${user.id}/${fileName}`
 
       const { error: uploadError } = await supabase.storage
@@ -146,11 +177,12 @@ export default function GalleryPage() {
 
       if (dbError) throw dbError
 
-      alert("¡Imagen guardada!")
+      alert("¡Imagen guardada en la flota!")
       setShowUploadModal(false)
+      await fetchImages() // RECARGA LA GRID AUTOMÁTICAMENTE
     } catch (error) {
       console.error(error)
-      alert("Error al subir")
+      alert("Error al subir la imagen")
     } finally {
       setIsUploading(false)
     }
@@ -167,7 +199,7 @@ export default function GalleryPage() {
           </h1>
         </div>
 
-        {/* --- BOTÓN SUBIDA ACTUALIZADO --- */}
+        {/* --- BOTÓN SUBIDA --- */}
         {(userRole === 'admin' || userRole === 'editor') && (
           <div className="flex justify-center mb-12">
             <Button onClick={() => setShowUploadModal(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 py-6 gap-2 text-lg">
@@ -176,7 +208,7 @@ export default function GalleryPage() {
           </div>
         )}
 
-        {/* --- SECCIÓN FILTROS --- */}
+        {/* --- FILTROS --- */}
         <div className="flex justify-center mb-12">
           <div className="flex flex-wrap gap-4 justify-center max-w-6xl w-full">
             {loading ? <Loader2 className="animate-spin text-primary" /> : (
@@ -222,44 +254,93 @@ export default function GalleryPage() {
           </div>
         </div>
 
-        {/* --- GRID (VACÍA) --- */}
+        {/* --- GRID DE IMÁGENES --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-           {!loading && <p className="col-span-full text-center text-foreground/30 py-20">Selecciona un filtro para ver las capturas.</p>}
+          {loading ? (
+            <div className="col-span-full flex flex-col items-center py-20 gap-4">
+              <Loader2 className="animate-spin text-primary w-12 h-12" />
+              <p className="text-primary/60 animate-pulse font-bold">CARGANDO ARCHIVOS DE LA FLOTA...</p>
+            </div>
+          ) : filteredImages.length > 0 ? (
+            filteredImages.map((image, index) => (
+              <div 
+                key={image.id} 
+                className="group relative aspect-video overflow-hidden rounded border-2 border-primary/20 hover:border-primary cursor-pointer transition-all"
+                onClick={() => setSelectedImage(index)}
+              >
+                <Image src={image.src} alt={image.alt} fill className="object-cover transition-transform duration-500 group-hover:scale-110" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-tighter">
+                    {image.stage} {image.subcategory && `// ${image.subcategory}`}
+                  </p>
+                  <p className="text-white text-sm font-medium truncate">{image.alt}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-20 border-2 border-dashed border-primary/10 rounded">
+              <p className="text-foreground/30 uppercase tracking-[0.3em]">Sector sin registros visuales</p>
+            </div>
+          )}
         </div>
 
-        {/* --- MODAL SUBIDA --- */}
+        {/* --- LIGHTBOX --- */}
+        {selectedImage !== null && (
+          <div className="fixed inset-0 bg-black/98 z-[100] flex items-center justify-center p-4 lg:p-12" onClick={() => setSelectedImage(null)}>
+            <button className="absolute top-8 right-8 text-white/50 hover:text-primary transition-colors"><X className="w-10 h-10" /></button>
+            <div className="relative w-full h-full flex items-center justify-center">
+              <Image 
+                src={filteredImages[selectedImage].src} 
+                alt={filteredImages[selectedImage].alt} 
+                width={1920} height={1080} 
+                className="object-contain max-h-full w-auto shadow-[0_0_100px_rgba(var(--primary),0.1)]" 
+              />
+            </div>
+          </div>
+        )}
+
+        {/* --- MODAL DE SUBIDA --- */}
         {showUploadModal && (
-          <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4" onClick={() => setShowUploadModal(false)}>
+          <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4" onClick={() => setShowUploadModal(false)}>
             <div className="bg-black border-2 border-primary/30 rounded-lg p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-primary">SUBIR IMAGEN</h2>
+                <h2 className="text-2xl font-bold text-primary uppercase tracking-tighter">Cargar Evidencia</h2>
                 <button onClick={() => setShowUploadModal(false)}><X className="w-6 h-6 hover:text-primary transition-colors" /></button>
               </div>
 
               <div className="space-y-4">
-                <input type="text" placeholder="Descripción corta..." className="w-full bg-zinc-900 border-2 border-primary/20 rounded px-4 py-3 outline-none focus:border-primary transition-all text-sm" onChange={(e) => setUploadData({...uploadData, alt: e.target.value})} />
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-primary/60 uppercase">Título de la captura</label>
+                  <input type="text" className="w-full bg-zinc-900 border-2 border-primary/20 rounded px-4 py-3 outline-none focus:border-primary transition-all text-sm" onChange={(e) => setUploadData({...uploadData, alt: e.target.value})} />
+                </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <select value={uploadData.padreId} className="w-full bg-zinc-900 border-2 border-primary/20 rounded p-3 text-xs" onChange={(e) => {
-                    const p = filtros.find(f => f.id === e.target.value)
-                    setUploadData({...uploadData, padreId: e.target.value, hijoId: p?.filtros_hijo?.[0]?.id || ""})
-                  }}>
-                    {filtros.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
-                  </select>
-                  <select value={uploadData.hijoId} className="w-full bg-zinc-900 border-2 border-primary/20 rounded p-3 text-xs" onChange={(e) => setUploadData({...uploadData, hijoId: e.target.value})}>
-                    {filtros.find(f => f.id === uploadData.padreId)?.filtros_hijo.map(h => (
-                      <option key={h.id} value={h.id}>{h.nombre}</option>
-                    ))}
-                  </select>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-primary/60 uppercase">Etapa</label>
+                    <select value={uploadData.padreId} className="w-full bg-zinc-900 border-2 border-primary/20 rounded p-3 text-xs outline-none" onChange={(e) => {
+                      const p = filtros.find(f => f.id === e.target.value)
+                      setUploadData({...uploadData, padreId: e.target.value, hijoId: p?.filtros_hijo?.[0]?.id || ""})
+                    }}>
+                      {filtros.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-primary/60 uppercase">Subcategoría</label>
+                    <select value={uploadData.hijoId} className="w-full bg-zinc-900 border-2 border-primary/20 rounded p-3 text-xs outline-none" onChange={(e) => setUploadData({...uploadData, hijoId: e.target.value})}>
+                      {filtros.find(f => f.id === uploadData.padreId)?.filtros_hijo.map(h => (
+                        <option key={h.id} value={h.id}>{h.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="pt-2">
-                  <input type="file" accept="image/*" className="text-xs w-full file:bg-primary file:border-0 file:rounded file:px-3 file:py-2 file:mr-3 cursor-pointer" onChange={(e) => e.target.files && setUploadData({...uploadData, file: e.target.files[0]})} />
+                  <input type="file" accept="image/*" className="text-xs w-full file:bg-primary file:text-black file:font-bold file:border-0 file:rounded file:px-3 file:py-2 file:mr-3 cursor-pointer" onChange={(e) => e.target.files && setUploadData({...uploadData, file: e.target.files[0]})} />
                 </div>
 
-                <Button onClick={handleUploadSubmit} disabled={!uploadData.file || isUploading} className="w-full bg-primary hover:bg-primary/90 py-6 font-bold uppercase tracking-widest">
+                <Button onClick={handleUploadSubmit} disabled={!uploadData.file || isUploading} className="w-full bg-primary hover:bg-primary/90 py-6 font-black uppercase tracking-widest text-black">
                   {isUploading ? <Loader2 className="animate-spin mr-2" /> : <Upload className="mr-2 w-5 h-5" />}
-                  {isUploading ? "Subiendo..." : "Guardar Imagen"}
+                  {isUploading ? "Cifrando..." : "Transmitir a Galería"}
                 </Button>
               </div>
             </div>
