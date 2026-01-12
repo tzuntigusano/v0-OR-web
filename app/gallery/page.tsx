@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Navigation } from "@/components/navigation"
 import { X, Upload, ChevronDown, Loader2, Trash2, CheckCircle2, Circle, Pin, PinOff, Files } from "lucide-react"
 import Image from "next/image"
@@ -47,11 +47,12 @@ export default function GalleryPage() {
   const [filter, setFilter] = useState<{ stage: string; subcategory: string | null }>({ stage: "TODOS", subcategory: null })
   const [hoveredStage, setHoveredStage] = useState<string | null>(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [isDraggingGlobal, setIsDraggingGlobal] = useState(false)
   const [uploadData, setUploadData] = useState({ 
     padreId: "", 
     hijoId: "", 
     alt: "", 
-    files: [] as File[] // Ahora es un array
+    files: [] as File[] 
   })
 
   // 1. CARGA DE IMÁGENES
@@ -104,12 +105,37 @@ export default function GalleryPage() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // 3. LÓGICA FILTRADO
-  const filteredImages = filter.stage === "TODOS"
-    ? images
-    : filter.subcategory
-      ? images.filter((img) => img.stage === filter.stage && img.subcategory === filter.subcategory)
-      : images.filter((img) => img.stage === filter.stage)
+  // 3. LÓGICA DRAG & DROP GLOBAL
+  const handleGlobalDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if ((userRole === 'admin' || userRole === 'editor') && !isSelectionMode) {
+      setIsDraggingGlobal(true)
+    }
+  }
+
+  const handleGlobalDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Solo quitamos el overlay si salimos del contenedor principal
+    if (e.currentTarget === e.target) {
+      setIsDraggingGlobal(false)
+    }
+  }
+
+  const handleGlobalDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingGlobal(false)
+
+    if ((userRole === 'admin' || userRole === 'editor') && !isSelectionMode) {
+      const droppedFiles = Array.from(e.dataTransfer.files)
+      if (droppedFiles.length > 0) {
+        setUploadData(prev => ({ ...prev, files: [...prev.files, ...droppedFiles] }))
+        setShowUploadModal(true)
+      }
+    }
+  }
 
   // 4. ACCIONES ADMIN
   const handleSelectAll = () => {
@@ -182,16 +208,39 @@ export default function GalleryPage() {
     }
   }
 
+  // Lógica Filtrado Grid
+  const filteredImages = filter.stage === "TODOS"
+    ? images
+    : filter.subcategory
+      ? images.filter((img) => img.stage === filter.stage && img.subcategory === filter.subcategory)
+      : images.filter((img) => img.stage === filter.stage)
+
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main 
+      className="min-h-screen bg-background text-foreground relative"
+      onDragOver={handleGlobalDragOver}
+      onDragLeave={handleGlobalDragLeave}
+      onDrop={handleGlobalDrop}
+    >
       <Navigation />
+
+      {/* --- OVERLAY GLOBAL DE ARRASTRE --- */}
+      {isDraggingGlobal && (
+        <div className="fixed inset-0 z-[200] bg-primary/20 backdrop-blur-md border-[6px] border-dashed border-primary flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
+          <div className="bg-black/80 p-10 rounded-3xl border-2 border-primary flex flex-col items-center gap-6 shadow-[0_0_50px_rgba(var(--primary),0.3)]">
+            <Upload className="w-20 h-20 text-primary animate-bounce" />
+            <h2 className="text-3xl font-black text-primary uppercase tracking-[0.2em] italic">Soltar archivos para cargar</h2>
+          </div>
+        </div>
+      )}
+
       <div className="container mx-auto px-4 pt-32 pb-20">
         <h1 className="text-center text-4xl md:text-6xl font-bold mb-12 uppercase tracking-widest italic">Galería <span className="text-primary">Outraiders</span></h1>
 
         {/* --- PANEL DE ACCIONES --- */}
         <div className="flex flex-col items-center gap-4 mb-12">
           {(userRole === 'admin' || userRole === 'editor') && !isSelectionMode && (
-            <Button onClick={() => setShowUploadModal(true)} className="bg-primary text-black font-bold px-8 py-6 text-lg uppercase tracking-tighter hover:bg-primary/80">
+            <Button onClick={() => setShowUploadModal(true)} className="bg-primary text-black font-bold px-8 py-6 text-lg uppercase tracking-tighter hover:bg-primary/80 transition-all">
               <Files className="mr-2 w-6 h-6" /> Carga Múltiple
             </Button>
           )}
@@ -251,7 +300,7 @@ export default function GalleryPage() {
                   
                   <Image src={img.src} alt={img.alt} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
 
-                  {img.fijada && <div className="absolute top-3 left-3 bg-primary text-black p-1.5 rounded-md shadow-lg z-10"><Pin className="w-4 h-4 fill-black" /></div>}
+                  {img.fijada && <div className="absolute top-3 left-3 bg-primary text-black p-1.5 rounded-md shadow-lg z-10 animate-in fade-in zoom-in"><Pin className="w-4 h-4 fill-black" /></div>}
 
                   {userRole === 'admin' && !isSelectionMode && (
                     <button onClick={(e) => toggleFijar(e, img.id, img.fijada)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary z-20">
@@ -277,10 +326,10 @@ export default function GalleryPage() {
           )}
         </div>
 
-        {/* --- MODAL CARGA MÚLTIPLE --- */}
+        {/* --- MODAL CARGA MÚLTIPLE (Manteniendo el formato solicitado) --- */}
         {showUploadModal && (
-          <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4" onClick={() => setShowUploadModal(false)}>
-            <div className="bg-black border-2 border-primary/30 rounded-lg p-8 max-w-md w-full animate-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4 animate-in zoom-in duration-200" onClick={() => setShowUploadModal(false)}>
+            <div className="bg-black border-2 border-primary/30 rounded-lg p-8 max-w-md w-full" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-primary uppercase tracking-tighter italic">Carga de Flota</h2>
                 <button onClick={() => setShowUploadModal(false)}><X className="w-6 h-6 hover:text-primary" /></button>
@@ -290,7 +339,7 @@ export default function GalleryPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Etapa</label>
-                    <select className="w-full bg-zinc-900 border-2 border-primary/20 p-3 rounded text-xs outline-none focus:border-primary cursor-pointer" onChange={e => {
+                    <select className="w-full bg-zinc-900 border-2 border-primary/20 p-3 rounded text-xs outline-none focus:border-primary cursor-pointer" value={uploadData.padreId} onChange={e => {
                       const p = filtros.find(f => f.id === e.target.value)
                       setUploadData({...uploadData, padreId: e.target.value, hijoId: p?.filtros_hijo[0]?.id || ""})
                     }}>
@@ -314,26 +363,26 @@ export default function GalleryPage() {
                     className="flex flex-col items-center justify-center w-full bg-zinc-900 border-2 border-dashed border-primary/20 hover:border-primary/50 rounded-lg p-8 cursor-pointer transition-all group gap-2"
                   >
                     <Upload className="w-8 h-8 text-primary/40 group-hover:text-primary transition-colors" />
-                    <span className="text-sm text-zinc-400">
+                    <span className="text-sm text-zinc-400 text-center">
                       {uploadData.files.length > 0 
                         ? `${uploadData.files.length} archivos seleccionados` 
-                        : "Arrastra o haz clic para subir"}
+                        : "Arrastra archivos aquí o haz clic"}
                     </span>
                   </label>
                 </div>
 
                 {uploadData.files.length > 0 && (
-                  <div className="bg-primary/5 border border-primary/20 rounded p-3 max-h-32 overflow-y-auto">
+                  <div className="bg-primary/5 border border-primary/20 rounded p-3 max-h-32 overflow-y-auto custom-scrollbar">
                     {uploadData.files.map((f, i) => (
-                      <div key={i} className="text-[10px] text-primary/70 flex justify-between uppercase">
-                        <span>{f.name}</span>
-                        <span>{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                      <div key={i} className="text-[10px] text-primary/70 flex justify-between uppercase mb-1 last:mb-0">
+                        <span className="truncate pr-4">{f.name}</span>
+                        <span className="shrink-0">{(f.size / 1024 / 1024).toFixed(2)} MB</span>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <Button onClick={handleUploadSubmit} disabled={uploadData.files.length === 0 || isUploading} className="w-full bg-primary text-black font-black py-7 uppercase tracking-[0.2em]">
+                <Button onClick={handleUploadSubmit} disabled={uploadData.files.length === 0 || isUploading} className="w-full bg-primary text-black font-black py-7 uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(var(--primary),0.2)]">
                   {isUploading ? (
                     <div className="flex flex-col items-center">
                       <Loader2 className="animate-spin mb-1" />
@@ -348,7 +397,7 @@ export default function GalleryPage() {
 
         {/* --- LIGHTBOX --- */}
         {selectedImage !== null && !isSelectionMode && (
-          <div className="fixed inset-0 bg-black/98 z-[120] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setSelectedImage(null)}>
+          <div className="fixed inset-0 bg-black/98 z-[400] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setSelectedImage(null)}>
             <div className="relative w-full h-full flex items-center justify-center">
               <Image src={filteredImages[selectedImage].src} alt="View" width={1920} height={1080} className="object-contain max-h-full w-auto" />
             </div>
