@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
-import { X, Upload, ChevronDown, Loader2, Trash2, CheckCircle2, Circle, Pin, PinOff } from "lucide-react"
+import { X, Upload, ChevronDown, Loader2, Trash2, CheckCircle2, Circle, Pin, PinOff, Files } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
@@ -31,6 +31,7 @@ export default function GalleryPage() {
   const [images, setImages] = useState<GaleriaImagen[]>([])
   const [loading, setLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 })
   
   // Estados de Usuario
   const [userRole, setUserRole] = useState<string | null>(null)
@@ -46,9 +47,14 @@ export default function GalleryPage() {
   const [filter, setFilter] = useState<{ stage: string; subcategory: string | null }>({ stage: "TODOS", subcategory: null })
   const [hoveredStage, setHoveredStage] = useState<string | null>(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
-  const [uploadData, setUploadData] = useState({ padreId: "", hijoId: "", alt: "", file: null as File | null })
+  const [uploadData, setUploadData] = useState({ 
+    padreId: "", 
+    hijoId: "", 
+    alt: "", 
+    files: [] as File[] // Ahora es un array
+  })
 
-  // 1. CARGA DE IMÁGENES (Prioriza fijada, luego fecha)
+  // 1. CARGA DE IMÁGENES
   async function fetchImages() {
     try {
       const { data, error } = await supabase
@@ -115,7 +121,6 @@ export default function GalleryPage() {
     e.stopPropagation();
     try {
       if (!currentStatus) {
-        // Solo puede haber una fijada: quitamos el fijado a todas las demás
         await supabase.from('imagenes_galeria').update({ fijada: false }).neq('id', imgId)
       }
       const { error } = await supabase.from('imagenes_galeria').update({ fijada: !currentStatus }).eq('id', imgId)
@@ -138,35 +143,56 @@ export default function GalleryPage() {
     } finally { setIsDeleting(false) }
   }
 
+  // 5. LÓGICA DE SUBIDA MÚLTIPLE
   const handleUploadSubmit = async () => {
-    if (!uploadData.file || !user) return
+    if (uploadData.files.length === 0 || !user) return
     setIsUploading(true)
+    setUploadProgress({ current: 0, total: uploadData.files.length })
+
     try {
-      const options = { maxSizeMB: 0.8, maxWidthOrHeight: 1920 }
-      const compressed = await imageCompression(uploadData.file, options)
-      const path = `${user.id}/${Math.random().toString(36).substring(2)}`
-      await supabase.storage.from('galeria').upload(path, compressed)
-      const { data: { publicUrl } } = supabase.storage.from('galeria').getPublicUrl(path)
+      for (let i = 0; i < uploadData.files.length; i++) {
+        const file = uploadData.files[i]
+        setUploadProgress(prev => ({ ...prev, current: i + 1 }))
+
+        const options = { maxSizeMB: 0.8, maxWidthOrHeight: 1920 }
+        const compressed = await imageCompression(file, options)
+        const path = `${user.id}/${Math.random().toString(36).substring(2)}`
+        
+        const { error: storageError } = await supabase.storage.from('galeria').upload(path, compressed)
+        if (storageError) throw storageError
+
+        const { data: { publicUrl } } = supabase.storage.from('galeria').getPublicUrl(path)
+        
+        await supabase.from('imagenes_galeria').insert([{
+          url: publicUrl, 
+          alt: uploadData.alt || file.name.split('.')[0], 
+          filtro_padre_id: uploadData.padreId, 
+          filtro_hijo_id: uploadData.hijoId || null, 
+          subido_por: user.id
+        }])
+      }
       
-      await supabase.from('imagenes_galeria').insert([{
-        url: publicUrl, alt: uploadData.alt, filtro_padre_id: uploadData.padreId, 
-        filtro_hijo_id: uploadData.hijoId || null, subido_por: user.id
-      }])
-      setUploadData(p => ({...p, file: null, alt: ""})); setShowUploadModal(false); await fetchImages()
-    } finally { setIsUploading(false) }
+      setUploadData(p => ({...p, files: [], alt: ""})); 
+      setShowUploadModal(false); 
+      await fetchImages()
+    } catch (error) {
+      alert("Error durante la transmisión múltiple")
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <Navigation />
       <div className="container mx-auto px-4 pt-32 pb-20">
-        <h1 className="text-center text-4xl md:text-6xl font-bold mb-12 uppercase tracking-widest">Galería <span className="text-primary">Outraiders</span></h1>
+        <h1 className="text-center text-4xl md:text-6xl font-bold mb-12 uppercase tracking-widest italic">Galería <span className="text-primary">Outraiders</span></h1>
 
         {/* --- PANEL DE ACCIONES --- */}
         <div className="flex flex-col items-center gap-4 mb-12">
           {(userRole === 'admin' || userRole === 'editor') && !isSelectionMode && (
             <Button onClick={() => setShowUploadModal(true)} className="bg-primary text-black font-bold px-8 py-6 text-lg uppercase tracking-tighter hover:bg-primary/80">
-              <Upload className="mr-2 w-6 h-6" /> Subir Imagen
+              <Files className="mr-2 w-6 h-6" /> Carga Múltiple
             </Button>
           )}
 
@@ -174,7 +200,7 @@ export default function GalleryPage() {
             <div className="flex flex-wrap justify-center gap-3">
               {!isSelectionMode ? (
                 <Button onClick={() => setIsSelectionMode(true)} variant="outline" className="border-red-500/50 text-red-500 hover:bg-red-500/10">
-                  <Trash2 className="w-4 h-4 mr-2" /> Gestionar Flota
+                  <Trash2 className="w-4 h-4 mr-2" /> Gestionar Galería
                 </Button>
               ) : (
                 <>
@@ -184,7 +210,7 @@ export default function GalleryPage() {
                   <Button onClick={handleDeleteSelected} disabled={selectedIds.length === 0 || isDeleting} className="bg-red-600 text-white font-bold px-6">
                     {isDeleting ? <Loader2 className="animate-spin mr-2" /> : <Trash2 className="mr-2 w-4 h-4" />} Borrar ({selectedIds.length})
                   </Button>
-                  <Button onClick={() => { setIsSelectionMode(false); setSelectedIds([]) }} variant="ghost" className="hover:text-white">Cancelar</Button>
+                  <Button onClick={() => { setIsSelectionMode(false); setSelectedIds([]) }} variant="ghost">Cancelar</Button>
                 </>
               )}
             </div>
@@ -225,7 +251,7 @@ export default function GalleryPage() {
                   
                   <Image src={img.src} alt={img.alt} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
 
-                  {img.fijada && <div className="absolute top-3 left-3 bg-primary text-black p-1.5 rounded-md shadow-lg z-10 animate-in fade-in zoom-in"><Pin className="w-4 h-4 fill-black" /></div>}
+                  {img.fijada && <div className="absolute top-3 left-3 bg-primary text-black p-1.5 rounded-md shadow-lg z-10"><Pin className="w-4 h-4 fill-black" /></div>}
 
                   {userRole === 'admin' && !isSelectionMode && (
                     <button onClick={(e) => toggleFijar(e, img.id, img.fijada)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary z-20">
@@ -239,7 +265,7 @@ export default function GalleryPage() {
 
                   {!isSelectionMode && (
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="text-[10px] font-bold text-primary uppercase tracking-tighter mb-1">{img.stage} {img.subcategory && `// ${img.subcategory}`}</p>
+                      <p className="text-[10px] font-bold text-primary uppercase mb-1">{img.stage} {img.subcategory && `// ${img.subcategory}`}</p>
                       <p className="text-white text-sm font-medium truncate">{img.alt || "Sin descripción"}</p>
                     </div>
                   )}
@@ -251,20 +277,16 @@ export default function GalleryPage() {
           )}
         </div>
 
-        {/* --- MODAL SUBIDA (Input de archivo corregido) --- */}
+        {/* --- MODAL CARGA MÚLTIPLE --- */}
         {showUploadModal && (
           <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4" onClick={() => setShowUploadModal(false)}>
-            <div className="bg-black border-2 border-primary/30 rounded-lg p-8 max-w-md w-full" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-2xl font-bold text-primary uppercase tracking-tighter">Cargar Evidencia</h2>
+            <div className="bg-black border-2 border-primary/30 rounded-lg p-8 max-w-md w-full animate-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-primary uppercase tracking-tighter italic">Carga de Flota</h2>
                 <button onClick={() => setShowUploadModal(false)}><X className="w-6 h-6 hover:text-primary" /></button>
               </div>
-              <div className="space-y-5">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Descripción</label>
-                  <input type="text" placeholder="Título de la captura..." className="w-full bg-zinc-900 border-2 border-primary/20 p-3 rounded text-sm outline-none focus:border-primary transition-all" onChange={e => setUploadData({...uploadData, alt: e.target.value})} />
-                </div>
-                
+
+              <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Etapa</label>
@@ -284,19 +306,40 @@ export default function GalleryPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Archivo de imagen</label>
-                  <input type="file" id="file-upload" accept="image/*" className="hidden" onChange={e => e.target.files && setUploadData({...uploadData, file: e.target.files[0]})} />
-                  <label htmlFor="file-upload" className="flex items-center justify-between w-full bg-zinc-900 border-2 border-dashed border-primary/20 hover:border-primary/50 rounded-lg px-4 py-4 cursor-pointer transition-all group">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 p-2 rounded group-hover:bg-primary/20"><Upload className="w-5 h-5 text-primary" /></div>
-                      <span className="text-sm text-zinc-400 truncate max-w-[180px]">{uploadData.file ? uploadData.file.name : "Seleccionar..."}</span>
-                    </div>
-                    {uploadData.file && <CheckCircle2 className="w-5 h-5 text-primary" />}
+                  <label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Capturas (Múltiples)</label>
+                  <input type="file" id="file-upload-multiple" accept="image/*" multiple className="hidden" 
+                    onChange={e => e.target.files && setUploadData({...uploadData, files: Array.from(e.target.files)})} />
+                  
+                  <label htmlFor="file-upload-multiple" 
+                    className="flex flex-col items-center justify-center w-full bg-zinc-900 border-2 border-dashed border-primary/20 hover:border-primary/50 rounded-lg p-8 cursor-pointer transition-all group gap-2"
+                  >
+                    <Upload className="w-8 h-8 text-primary/40 group-hover:text-primary transition-colors" />
+                    <span className="text-sm text-zinc-400">
+                      {uploadData.files.length > 0 
+                        ? `${uploadData.files.length} archivos seleccionados` 
+                        : "Arrastra o haz clic para subir"}
+                    </span>
                   </label>
                 </div>
 
-                <Button onClick={handleUploadSubmit} disabled={!uploadData.file || isUploading} className="w-full bg-primary text-black font-black py-7 uppercase tracking-[0.2em] mt-2">
-                  {isUploading ? <Loader2 className="animate-spin" /> : "Confirmar Transmisión"}
+                {uploadData.files.length > 0 && (
+                  <div className="bg-primary/5 border border-primary/20 rounded p-3 max-h-32 overflow-y-auto">
+                    {uploadData.files.map((f, i) => (
+                      <div key={i} className="text-[10px] text-primary/70 flex justify-between uppercase">
+                        <span>{f.name}</span>
+                        <span>{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <Button onClick={handleUploadSubmit} disabled={uploadData.files.length === 0 || isUploading} className="w-full bg-primary text-black font-black py-7 uppercase tracking-[0.2em]">
+                  {isUploading ? (
+                    <div className="flex flex-col items-center">
+                      <Loader2 className="animate-spin mb-1" />
+                      <span className="text-[10px]">TRANSMITIENDO {uploadProgress.current}/{uploadProgress.total}</span>
+                    </div>
+                  ) : "Confirmar Transmisión"}
                 </Button>
               </div>
             </div>
@@ -305,12 +348,9 @@ export default function GalleryPage() {
 
         {/* --- LIGHTBOX --- */}
         {selectedImage !== null && !isSelectionMode && (
-          <div className="fixed inset-0 bg-black/98 z-[120] flex items-center justify-center p-4 lg:p-12 animate-in fade-in duration-300" onClick={() => setSelectedImage(null)}>
+          <div className="fixed inset-0 bg-black/98 z-[120] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setSelectedImage(null)}>
             <div className="relative w-full h-full flex items-center justify-center">
-              <Image src={filteredImages[selectedImage].src} alt="View" width={1920} height={1080} className="object-contain max-h-full w-auto shadow-2xl" />
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 px-6 py-2 rounded-full border border-primary/20 backdrop-blur-md">
-                <p className="text-primary font-bold text-sm tracking-widest uppercase">{filteredImages[selectedImage].alt || "Captura de Outraiders"}</p>
-              </div>
+              <Image src={filteredImages[selectedImage].src} alt="View" width={1920} height={1080} className="object-contain max-h-full w-auto" />
             </div>
             <button className="absolute top-8 right-8 text-white/50 hover:text-white transition-colors"><X className="w-12 h-12" /></button>
           </div>
