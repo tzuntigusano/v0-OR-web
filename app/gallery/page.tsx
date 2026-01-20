@@ -112,33 +112,28 @@ export default function GalleryPage() {
   }, []);
 
   // --- 2. EFECTO INICIAL (CON CONTROLADOR DE ABORTO Y LIMPIEZA) ---
+  // --- 2. EFECTO DE CARGA DE DATOS ---
   useEffect(() => {
     const controller = new AbortController();
-    console.log("🚀 [INIT] Montando componente y preparando controlador");
-
+    
     const init = async () => {
+      console.log("🚀 [INIT] Iniciando carga de datos...");
       try {
-        // Carga de filtros con signal
-        const { data: fData } = await supabase
-          .from('filtros_padre')
-          .select(`id, nombre, filtros_hijo (id, nombre, orden)`)
-          .abortSignal(controller.signal)
-          .order('orden', { ascending: true });
-
-        if (fData) {
-          const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS");
-          setFiltros(lista);
-          if (lista.length > 0) {
-            setUploadData(p => ({ 
-              ...p, 
-              padreId: lista[0].id, 
-              hijoId: lista[0].filtros_hijo?.[0]?.id || "" 
-            }));
-          }
-        }
-        
-        // Carga de imágenes inicial
-        await fetchImages(undefined, undefined, controller.signal);
+        // Cargamos filtros e imágenes en paralelo para mayor velocidad
+        await Promise.all([
+          supabase
+            .from('filtros_padre')
+            .select(`id, nombre, filtros_hijo (id, nombre, orden)`)
+            .abortSignal(controller.signal)
+            .order('orden', { ascending: true })
+            .then(({ data: fData }) => {
+              if (fData) {
+                const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS");
+                setFiltros(lista);
+              }
+            }),
+          fetchImages(undefined, undefined, controller.signal)
+        ]);
       } catch (err: any) {
         if (err.name !== 'AbortError') console.error("Error en init:", err);
       }
@@ -146,21 +141,38 @@ export default function GalleryPage() {
 
     init();
 
+    return () => {
+      console.log("🧹 [CLEANUP] Abortando peticiones de datos...");
+      controller.abort();
+    };
+  }, [fetchImages]);
+
+  // --- 3. EFECTO DE AUTENTICACIÓN (SEPARADO) ---
+  useEffect(() => {
+    console.log("🔐 [AUTH] Configurando escucha de sesión...");
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (controller.signal.aborted) return; // Si ya refrescamos, no hagas nada
+      
       setUser(session?.user ?? null);
+      
       if (session?.user) {
-        const { data } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id).maybeSingle();
+        const { data } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
         setUserRole(data?.role || null);
+      } else {
+        setUserRole(null);
       }
     });
 
-    // LIMPIEZA: Se ejecuta al hacer F5 o navegar a otra página
     return () => {
-      console.log("🧹 [CLEANUP] Cancelando procesos activos...");
-      controller.abort();
+      console.log("🧹 [CLEANUP] Cerrando suscripción Auth...");
       subscription.unsubscribe();
     };
-  }, [fetchImages]);
+  }, []);
 
   // --- 3. FUNCIONES DRAG & DROP ---
   const handleGlobalDragOver = (e: React.DragEvent) => {
