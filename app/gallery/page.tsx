@@ -37,7 +37,6 @@ export default function GalleryPage() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [user, setUser] = useState<any>(null)
 
-  // Gestión Admin
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
@@ -45,7 +44,6 @@ export default function GalleryPage() {
   const [editedNames, setEditedNames] = useState<{ [key: string]: string }>({}) 
   const [selectedImage, setSelectedImage] = useState<number | null>(null)
 
-  // Filtros y UI
   const [filter, setFilter] = useState<{ stage: string; subcategory: string | null; padreId?: string; hijoId?: string | null }>({ 
     stage: "TODOS", 
     subcategory: null 
@@ -55,20 +53,22 @@ export default function GalleryPage() {
   const [isDraggingGlobal, setIsDraggingGlobal] = useState(false)
   const [uploadData, setUploadData] = useState({ padreId: "", hijoId: "", alt: "", files: [] as File[] })
 
-  // --- 1. FUNCIÓN DE CARGA ---
+  // --- 1. FUNCIÓN DE CARGA OPTIMIZADA ---
   const fetchImages = useCallback(async (padreId?: string, hijoId?: string | null) => {
     try {
       setLoading(true);
-      console.log("📸 [FETCH] Cargando imágenes...", { padreId, hijoId });
+      console.log("📸 [CHECKPOINT 1] Entrando en fetchImages");
       
       let data;
       let error;
 
       if (!padreId || padreId === "TODOS") {
+        console.log("📸 [CHECKPOINT 2] Ejecutando RPC get_random_images");
         const res = await supabase.rpc('get_random_images', { limit_count: 40 });
         data = res.data;
         error = res.error;
       } else {
+        console.log("📸 [CHECKPOINT 2] Ejecutando Query filtrada");
         let query = supabase.from('imagenes_galeria').select(`
           id, url, alt, fijada, filtro_padre_id, filtro_hijo_id,
           filtros_padre (nombre), filtros_hijo (nombre)
@@ -82,7 +82,11 @@ export default function GalleryPage() {
         error = res.error;
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ [CHECKPOINT ERROR] Error en la consulta:", error);
+        throw error;
+      }
+
       if (data) {
         setImages(data.map((img: any) => ({
           id: img.id,
@@ -94,28 +98,51 @@ export default function GalleryPage() {
           filtro_padre_id: img.filtro_padre_id,
           filtro_hijo_id: img.filtro_hijo_id
         })));
-        console.log("✅ [FETCH] Éxito");
+        console.log("✅ [CHECKPOINT 3] Imágenes cargadas en el estado:", data.length);
       }
     } catch (err) {
-      console.error("❌ [FETCH] Error:", err);
+      console.error("❌ [FETCH FATAL ERROR]:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // --- 2. EFECTO INICIAL ---
+  // --- 2. EFECTO INICIAL (RE-ESTRUCTURADO PARA EVITAR BLOQUEOS) ---
   useEffect(() => {
-    console.log("🚀 [INIT] Montando componente");
-    const init = async () => {
-      const { data: fData } = await supabase.from('filtros_padre').select(`id, nombre, filtros_hijo (id, nombre, orden)` ).order('orden', { ascending: true });
-      if (fData) {
-        const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS");
-        setFiltros(lista);
-        if (lista.length > 0) setUploadData(p => ({ ...p, padreId: lista[0].id, hijoId: lista[0].filtros_hijo?.[0]?.id || "" }));
+    console.log("🚀 [INIT] Componente montado");
+
+    // Lanzamos la carga de imágenes de inmediato
+    fetchImages();
+
+    // Cargamos filtros de forma independiente
+    const loadFilters = async () => {
+      console.log("⚙️ [FILTERS] Iniciando carga de filtros...");
+      try {
+        const { data: fData, error } = await supabase
+          .from('filtros_padre')
+          .select(`id, nombre, filtros_hijo (id, nombre, orden)`)
+          .order('orden', { ascending: true });
+        
+        if (error) throw error;
+
+        if (fData) {
+          console.log("✅ [FILTERS] Filtros recibidos con éxito");
+          const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS");
+          setFiltros(lista);
+          if (lista.length > 0) {
+            setUploadData(p => ({ 
+              ...p, 
+              padreId: lista[0].id, 
+              hijoId: lista[0].filtros_hijo?.[0]?.id || "" 
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("❌ [FILTERS ERROR]:", err);
       }
-      await fetchImages();
     };
-    init();
+
+    loadFilters();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
@@ -124,6 +151,7 @@ export default function GalleryPage() {
         setUserRole(data?.role || null);
       }
     });
+
     return () => subscription.unsubscribe();
   }, [fetchImages]);
 
@@ -217,7 +245,6 @@ export default function GalleryPage() {
     >
       <Navigation />
 
-      {/* --- Overlay de Drag --- */}
       {isDraggingGlobal && (
         <div className="fixed inset-0 z-[200] bg-primary/20 backdrop-blur-md border-[6px] border-dashed border-primary flex items-center justify-center pointer-events-none">
           <div className="bg-black/80 p-10 rounded-3xl border-2 border-primary flex flex-col items-center gap-6">
@@ -230,7 +257,6 @@ export default function GalleryPage() {
       <div className="container mx-auto px-4 pt-32 pb-20">
         <h1 className="text-center text-4xl md:text-6xl font-bold mb-12 uppercase italic">Galería <span className="text-primary">Outraiders</span></h1>
 
-        {/* --- BOTONES ADMIN --- */}
         <div className="flex flex-col items-center gap-4 mb-12">
           {isAdmin && !isSelectionMode && (
             <Button onClick={() => setShowUploadModal(true)} className="bg-primary text-black font-bold px-8 py-6 text-lg uppercase">
