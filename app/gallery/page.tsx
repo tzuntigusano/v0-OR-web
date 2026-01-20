@@ -23,8 +23,8 @@ interface GaleriaImagen {
   stage: string
   subcategory: string | null
   fijada: boolean
-  filtro_padre_id: string; 
-  filtro_hijo_id: string | null;
+  filtro_padre_id: string
+  filtro_hijo_id: string | null
 }
 
 export default function GalleryPage() {
