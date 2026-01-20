@@ -118,65 +118,57 @@ export default function GalleryPage() {
 
   // 2. INICIALIZACIÓN
   useEffect(() => {
-    async function init() {
-      console.log("⚙️ Galería: Iniciando servicios...");
-      const { data: fData } = await supabase
-        .from('filtros_padre')
-        .select(`id, nombre, filtros_hijo (id, nombre, orden)`)
-        .order('orden', { ascending: true })
-        .order('orden', { foreignTable: 'filtros_hijo', ascending: true });
+    let isMounted = true;
 
-      if (fData) {
-        const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS")
-        setFiltros(lista)
-        if (lista.length > 0) {
-          setUploadData(prev => ({ 
-            ...prev, 
-            padreId: lista[0].id, 
-            hijoId: lista[0].filtros_hijo?.[0]?.id || "" 
-          }))
+    const init = async () => {
+      console.log("🚀 [DEBUG] Iniciando secuencia de carga...");
+      
+      try {
+        // 1. Verificamos conexión
+        const { data: testData, error: testError } = await supabase.from('filtros_padre').select('id').limit(1);
+        if (testError) throw new Error("Error de conexión a base de datos: " + testError.message);
+        console.log("✅ [DEBUG] Conexión con Supabase establecida");
+
+        // 2. Cargamos Filtros
+        const { data: fData, error: fError } = await supabase
+          .from('filtros_padre')
+          .select(`id, nombre, filtros_hijo (id, nombre, orden)`)
+          .order('orden', { ascending: true });
+
+        if (fError) throw fError;
+
+        if (isMounted && fData) {
+          console.log("✅ [DEBUG] Filtros obtenidos:", fData.length);
+          const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS");
+          setFiltros(lista);
+          
+          // Lanzamos la carga de imágenes inmediatamente
+          fetchImages(); 
         }
+
+      } catch (err) {
+        console.error("❌ [CRITICAL] Fallo en la inicialización:", err);
       }
-      // Llamada inicial
-      await fetchImages();
-    }
+    };
 
     init();
 
+    // Gestión de Auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        const { data } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id).maybeSingle()
-        setUserRole(data?.role || null)
-      } else {
-        setUserRole(null)
+      if (isMounted) {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          const { data } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id).maybeSingle();
+          setUserRole(data?.role || null);
+        }
       }
-    })
+    });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchImages]);
-
-  // 3. HANDLERS UI
-  const handleGlobalDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation()
-    if ((userRole === 'admin' || userRole === 'editor') && !isSelectionMode) setIsDraggingGlobal(true)
-  }
-
-  const handleGlobalDragLeave = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation()
-    if (e.currentTarget === e.target) setIsDraggingGlobal(false)
-  }
-
-  const handleGlobalDrop = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation(); setIsDraggingGlobal(false)
-    if ((userRole === 'admin' || userRole === 'editor') && !isSelectionMode) {
-      const droppedFiles = Array.from(e.dataTransfer.files)
-      if (droppedFiles.length > 0) {
-        setUploadData(prev => ({ ...prev, files: [...prev.files, ...droppedFiles] }))
-        setShowUploadModal(true)
-      }
-    }
-  }
 
   // 4. ACCIONES ADMIN
   const toggleFijar = async (e: React.MouseEvent, img: any) => {
