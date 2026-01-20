@@ -55,37 +55,68 @@ export default function GalleryPage() {
   const [uploadData, setUploadData] = useState({ padreId: "", hijoId: "", alt: "", files: [] as File[] })
 
   // 1. CARGA DE IMÁGENES
-  async function fetchImages() {
+  async function fetchImages(padreId?: string, hijoId?: string | null) {
     try {
-      const { data, error } = await supabase
-        .from('imagenes_galeria')
-        .select(`
-          id, 
-          url, 
-          alt, 
-          fijada, 
-          filtro_padre_id, 
-          filtro_hijo_id, 
-          filtros_padre (nombre), 
-          filtros_hijo (nombre)
-        `)
-        .order('fijada', { ascending: false })
-        .order('created_at', { ascending: false });
+      setLoading(true);
+      let data;
+      let error;
+
+      // VISTA "TODOS": Llamamos a la función aleatoria de SQL
+      if (!padreId || padreId === "TODOS") {
+        const res = await supabase.rpc('get_random_images', { limit_count: 40 });
+        data = res.data;
+        error = res.error;
+      } 
+      // VISTAS CON FILTRO: Consulta normal
+      else {
+        let query = supabase
+          .from('imagenes_galeria')
+          .select(`
+            id, url, alt, fijada, filtro_padre_id, filtro_hijo_id,
+            filtros_padre (nombre), filtros_hijo (nombre)
+          `);
+
+        if (hijoId) {
+          // Vista específica: PIN arriba
+          query = query
+            .eq('filtro_padre_id', padreId)
+            .eq('filtro_hijo_id', hijoId)
+            .order('fijada', { ascending: false })
+            .order('created_at', { ascending: false });
+        } else {
+          // Vista Padre: Cronológico
+          query = query
+            .eq('filtro_padre_id', padreId)
+            .order('created_at', { ascending: false });
+        }
+        
+        const res = await query;
+        data = res.data;
+        error = res.error;
+      }
+
+      if (error) throw error;
 
       if (data) {
+        // Necesitamos asegurar que filtros_padre y filtros_hijo vengan cargados.
+        // Si usas RPC, quizás debas hacer un pequeño ajuste en el mapeo si no devuelve los joins.
         const formatted = data.map((img: any) => ({
           id: img.id,
           src: img.url,
           alt: img.alt || "",
           fijada: img.fijada || false,
-          stage: img.filtros_padre?.nombre || "",
+          stage: img.filtros_padre?.nombre || "", // Si usas RPC básico, esto podría venir vacío
           subcategory: img.filtros_hijo?.nombre || null,
-          filtro_padre_id: img.filtro_padre_id, // Mapeo de ID
-          filtro_hijo_id: img.filtro_hijo_id    // Mapeo de ID
+          filtro_padre_id: img.filtro_padre_id,
+          filtro_hijo_id: img.filtro_hijo_id
         }));
         setImages(formatted);
       }
-    } catch (err) { console.error("Error fetch:", err); }
+    } catch (err) {
+      console.error("Error:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   // 2. INICIALIZACIÓN
@@ -315,17 +346,45 @@ export default function GalleryPage() {
 
         {/* --- FILTROS --- */}
         <div className="flex justify-center gap-4 flex-wrap mb-12">
-          <button onClick={() => setFilter({ stage: "TODOS", subcategory: null })} className={`px-6 py-2 rounded border-2 transition-all font-bold ${filter.stage === "TODOS" ? "bg-primary text-black border-primary" : "border-primary/20 hover:border-primary/50"}`}>TODOS</button>
+          {/* Botón TODOS: Carga aleatorias y resetea subcategoría */}
+          <button 
+            onClick={() => { 
+              setFilter({ stage: "TODOS", subcategory: null }); 
+              fetchImages(); 
+            }} 
+            className={`px-6 py-2 rounded border-2 transition-all font-bold ${filter.stage === "TODOS" ? "bg-primary text-black border-primary" : "border-primary/20 hover:border-primary/50"}`}
+          >
+            TODOS
+          </button>
+
           {filtros.map(p => (
             <div key={p.id} className="relative" onMouseEnter={() => setHoveredStage(p.nombre)} onMouseLeave={() => setHoveredStage(null)}>
-              <button onClick={() => setFilter({ stage: p.nombre, subcategory: null })} className={`px-6 py-2 rounded border-2 flex items-center gap-2 font-bold transition-all ${filter.stage === p.nombre ? "bg-primary text-black border-primary" : "border-primary/20 hover:border-primary/50"}`}>
+              {/* Botón PADRE: Carga por Etapa (Cronológico, sin PIN prioritario) */}
+              <button 
+                onClick={() => { 
+                  setFilter({ stage: p.nombre, subcategory: null }); 
+                  fetchImages(p.id); 
+                }} 
+                className={`px-6 py-2 rounded border-2 flex items-center gap-2 font-bold transition-all ${filter.stage === p.nombre ? "bg-primary text-black border-primary" : "border-primary/20 hover:border-primary/50"}`}
+              >
                 {p.nombre} {p.filtros_hijo.length > 0 && <ChevronDown className="w-4 h-4" />}
               </button>
+
+              {/* Menú Desplegable de HIJOS */}
               {hoveredStage === p.nombre && p.filtros_hijo.length > 0 && (
                 <div className="absolute top-full left-0 pt-2 w-56 z-50">
                   <div className="bg-black border-2 border-primary/30 rounded overflow-hidden shadow-2xl backdrop-blur-md">
                     {p.filtros_hijo.map(h => (
-                      <button key={h.id} onClick={() => setFilter({ stage: p.nombre, subcategory: h.nombre })} className="w-full text-left px-5 py-3 hover:bg-primary/20 text-sm font-medium border-b border-primary/10 last:border-b-0 transition-colors">{h.nombre}</button>
+                      <button 
+                        key={h.id} 
+                        onClick={() => { 
+                          setFilter({ stage: p.nombre, subcategory: h.nombre }); 
+                          fetchImages(p.id, h.id); // Carga Etapa + Subcategoría (Habilita PIN)
+                        }} 
+                        className="w-full text-left px-5 py-3 hover:bg-primary/20 text-sm font-medium border-b border-primary/10 last:border-b-0 transition-colors"
+                      >
+                        {h.nombre}
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -351,15 +410,19 @@ export default function GalleryPage() {
                   
                   <Image src={img.src} alt={img.alt} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
 
-                  {/* Icono fijada: Solo visible para Admin */}
-                  {img.fijada && isAdmin && (
+                  {/* 1. Icono estático (El Pin que indica que YA está fijada) */}
+                  {img.fijada && isAdmin && filter.subcategory !== null && (
                     <div className="absolute top-3 left-3 bg-primary text-black p-1.5 rounded-md shadow-lg z-10 animate-in fade-in zoom-in">
                       <Pin className="w-4 h-4 fill-black" />
                     </div>
                   )}
 
-                  {isAdmin && !isSelectionMode && (
-                    <button onClick={(e) => toggleFijar(e, img)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary z-20">
+                  {/* 2. Botón de acción (El que el Admin clica para cambiar el estado) */}
+                  {isAdmin && !isSelectionMode && filter.subcategory !== null && (
+                    <button 
+                      onClick={(e) => toggleFijar(e, img)} 
+                      className="absolute top-3 right-3 p-2 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary z-20"
+                    >
                       {img.fijada ? <PinOff className="w-5 h-5" /> : <Pin className="w-5 h-5" />}
                     </button>
                   )}
