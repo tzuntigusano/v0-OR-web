@@ -23,6 +23,8 @@ interface GaleriaImagen {
   stage: string
   subcategory: string | null
   fijada: boolean
+  filtro_padre_id: string; 
+  filtro_hijo_id: string | null;
 }
 
 export default function GalleryPage() {
@@ -57,7 +59,16 @@ export default function GalleryPage() {
     try {
       const { data, error } = await supabase
         .from('imagenes_galeria')
-        .select(`id, url, alt, fijada, filtros_padre (nombre), filtros_hijo (nombre)`)
+        .select(`
+          id, 
+          url, 
+          alt, 
+          fijada, 
+          filtro_padre_id, 
+          filtro_hijo_id, 
+          filtros_padre (nombre), 
+          filtros_hijo (nombre)
+        `)
         .order('fijada', { ascending: false })
         .order('created_at', { ascending: false });
 
@@ -68,7 +79,9 @@ export default function GalleryPage() {
           alt: img.alt || "",
           fijada: img.fijada || false,
           stage: img.filtros_padre?.nombre || "",
-          subcategory: img.filtros_hijo?.nombre || null
+          subcategory: img.filtros_hijo?.nombre || null,
+          filtro_padre_id: img.filtro_padre_id, // Mapeo de ID
+          filtro_hijo_id: img.filtro_hijo_id    // Mapeo de ID
         }));
         setImages(formatted);
       }
@@ -130,15 +143,44 @@ export default function GalleryPage() {
     else setSelectedIds(filteredImages.map(img => img.id))
   }
 
-  const toggleFijar = async (e: React.MouseEvent, imgId: string, currentStatus: boolean) => {
+  const toggleFijar = async (e: React.MouseEvent, img: GaleriaImagen) => {
     e.stopPropagation();
     try {
-      if (!currentStatus) await supabase.from('imagenes_galeria').update({ fijada: false }).neq('id', imgId)
-      const { error } = await supabase.from('imagenes_galeria').update({ fijada: !currentStatus }).eq('id', imgId)
-      if (error) throw error
-      await fetchImages()
-    } catch (err) { alert("Error al fijar"); }
-  }
+      // Si la imagen NO está fijada y queremos fijarla:
+      if (!img.fijada) {
+        // 1. Buscamos y desmarcamos el fijado ACTUAL de esta sección específica
+        let query = supabase
+          .from('imagenes_galeria')
+          .update({ fijada: false })
+          .eq('filtro_padre_id', img.filtro_padre_id)
+          .eq('fijada', true);
+
+        // Si tiene subcategoría, filtramos por ella, si no, buscamos donde sea null
+        if (img.filtro_hijo_id) {
+          query = query.eq('filtro_hijo_id', img.filtro_hijo_id);
+        } else {
+          query = query.is('filtro_hijo_id', null);
+        }
+
+        const { error: resetError } = await query;
+        if (resetError) throw resetError;
+      }
+
+      // 2. Hacemos el Toggle (marcar/desmarcar) de la imagen actual
+      const { error } = await supabase
+        .from('imagenes_galeria')
+        .update({ fijada: !img.fijada })
+        .eq('id', img.id);
+
+      if (error) throw error;
+      
+      // 3. Recargamos para ver los cambios
+      await fetchImages();
+    } catch (err) { 
+      console.error(err);
+      alert("Error al actualizar el fijado de esta sección"); 
+    }
+  };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0 || !confirm(`¿Borrar ${selectedIds.length} imágenes?`)) return
