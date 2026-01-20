@@ -359,7 +359,7 @@ export default function GalleryPage() {
                   )}
 
                   {isAdmin && !isSelectionMode && (
-                    <button onClick={(e) => toggleFijar(e, img.id, img.fijada)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary z-20">
+                    <button onClick={(e) => toggleFijar(e, img)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary z-20">
                       {img.fijada ? <PinOff className="w-5 h-5" /> : <Pin className="w-5 h-5" />}
                     </button>
                   )}
