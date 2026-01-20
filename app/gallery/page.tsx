@@ -143,21 +143,33 @@ export default function GalleryPage() {
     else setSelectedIds(filteredImages.map(img => img.id))
   }
 
-  const toggleFijar = async (e: React.MouseEvent, img: GaleriaImagen) => {
+  const toggleFijar = async (e: React.MouseEvent, img: any) => {
     e.stopPropagation();
+    
+    // EXTRAER IDs CON RESPALDO (FORCE EXTRACTION)
+    // Intentamos obtener el ID de todas las formas posibles donde podría estar
+    const pId = img.filtro_padre_id || img.padreId;
+    const hId = img.filtro_hijo_id || img.hijoId;
+
+    // Si después de intentar extraerlo sigue siendo undefined, detenemos la ejecución
+    // para evitar enviar basura a Supabase
+    if (!pId || pId === "undefined") {
+      console.error("Error crítico: El objeto imagen no tiene filtro_padre_id", img);
+      alert("Error de sincronización: Refresca la página con CTRL+F5");
+      return;
+    }
+
     try {
-      // Si la imagen NO está fijada y queremos fijarla:
       if (!img.fijada) {
-        // 1. Buscamos y desmarcamos el fijado ACTUAL de esta sección específica
+        // 1. Limpiar el fijado anterior en esta sección
         let query = supabase
           .from('imagenes_galeria')
           .update({ fijada: false })
-          .eq('filtro_padre_id', img.filtro_padre_id)
+          .eq('filtro_padre_id', pId)
           .eq('fijada', true);
 
-        // Si tiene subcategoría, filtramos por ella, si no, buscamos donde sea null
-        if (img.filtro_hijo_id) {
-          query = query.eq('filtro_hijo_id', img.filtro_hijo_id);
+        if (hId && hId !== "undefined") {
+          query = query.eq('filtro_hijo_id', hId);
         } else {
           query = query.is('filtro_hijo_id', null);
         }
@@ -166,21 +178,21 @@ export default function GalleryPage() {
         if (resetError) throw resetError;
       }
 
-      // 2. Hacemos el Toggle (marcar/desmarcar) de la imagen actual
-      const { error } = await supabase
+      // 2. Toggle de la imagen actual
+      const { error: updateError } = await supabase
         .from('imagenes_galeria')
         .update({ fijada: !img.fijada })
         .eq('id', img.id);
 
-      if (error) throw error;
-      
-      // 3. Recargamos para ver los cambios
+      if (updateError) throw updateError;
+
+      // 3. Recarga forzada de datos
       await fetchImages();
-    } catch (err) { 
-      console.error(err);
-      alert("Error al actualizar el fijado de esta sección"); 
-    }
-  };
+    } catch (err) {
+      console.error("Detalle técnico del error:", err);
+      alert("Error al actualizar. Revisa la consola (F12)");
+  }
+};
 
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0 || !confirm(`¿Borrar ${selectedIds.length} imágenes?`)) return
