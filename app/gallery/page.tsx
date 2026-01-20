@@ -13,7 +13,7 @@ import imageCompression from 'browser-image-compression'
 interface FiltroPadre {
   id: string
   nombre: string
-  filtros_hijo: { id: string; nombre: string }[]
+  filtros_hijo: { id: string; nombre: string; orden: number }[] // Añadido orden aquí
 }
 
 interface GaleriaImagen {
@@ -61,13 +61,11 @@ export default function GalleryPage() {
       let data;
       let error;
 
-      // VISTA "TODOS": Llamamos a la función aleatoria de SQL
       if (!padreId || padreId === "TODOS") {
         const res = await supabase.rpc('get_random_images', { limit_count: 40 });
         data = res.data;
         error = res.error;
       } 
-      // VISTAS CON FILTRO: Consulta normal
       else {
         let query = supabase
           .from('imagenes_galeria')
@@ -77,14 +75,12 @@ export default function GalleryPage() {
           `);
 
         if (hijoId) {
-          // Vista específica: PIN arriba
           query = query
             .eq('filtro_padre_id', padreId)
             .eq('filtro_hijo_id', hijoId)
             .order('fijada', { ascending: false })
             .order('created_at', { ascending: false });
         } else {
-          // Vista Padre: Cronológico
           query = query
             .eq('filtro_padre_id', padreId)
             .order('created_at', { ascending: false });
@@ -98,14 +94,12 @@ export default function GalleryPage() {
       if (error) throw error;
 
       if (data) {
-        // Necesitamos asegurar que filtros_padre y filtros_hijo vengan cargados.
-        // Si usas RPC, quizás debas hacer un pequeño ajuste en el mapeo si no devuelve los joins.
         const formatted = data.map((img: any) => ({
           id: img.id,
           src: img.url,
           alt: img.alt || "",
           fijada: img.fijada || false,
-          stage: img.filtros_padre?.nombre || "", // Si usas RPC básico, esto podría venir vacío
+          stage: img.filtros_padre?.nombre || "",
           subcategory: img.filtros_hijo?.nombre || null,
           filtro_padre_id: img.filtro_padre_id,
           filtro_hijo_id: img.filtro_hijo_id
@@ -123,12 +117,29 @@ export default function GalleryPage() {
   useEffect(() => {
     async function init() {
       setLoading(true)
-      const { data: fData } = await supabase.from('filtros_padre').select(`id, nombre, filtros_hijo (id, nombre)`).order('orden', { ascending: true })
+      const { data: fData } = await supabase
+        .from('filtros_padre')
+        .select(`
+          id, 
+          nombre, 
+          filtros_hijo (
+            id, 
+            nombre,
+            orden
+          )
+        `)
+        .order('orden', { ascending: true })
+        .order('orden', { foreignTable: 'filtros_hijo', ascending: true }); // Ordena los hijos por su columna 'orden'
+
       if (fData) {
         const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS")
         setFiltros(lista)
         if (lista.length > 0) {
-          setUploadData(prev => ({ ...prev, padreId: lista[0].id, hijoId: lista[0].filtros_hijo?.[0]?.id || "" }))
+          setUploadData(prev => ({ 
+            ...prev, 
+            padreId: lista[0].id, 
+            hijoId: lista[0].filtros_hijo?.[0]?.id || "" 
+          }))
         }
       }
       await fetchImages();
@@ -176,14 +187,9 @@ export default function GalleryPage() {
 
   const toggleFijar = async (e: React.MouseEvent, img: any) => {
     e.stopPropagation();
-    
-    // EXTRAER IDs CON RESPALDO (FORCE EXTRACTION)
-    // Intentamos obtener el ID de todas las formas posibles donde podría estar
     const pId = img.filtro_padre_id || img.padreId;
     const hId = img.filtro_hijo_id || img.hijoId;
 
-    // Si después de intentar extraerlo sigue siendo undefined, detenemos la ejecución
-    // para evitar enviar basura a Supabase
     if (!pId || pId === "undefined") {
       console.error("Error crítico: El objeto imagen no tiene filtro_padre_id", img);
       alert("Error de sincronización: Refresca la página con CTRL+F5");
@@ -192,7 +198,6 @@ export default function GalleryPage() {
 
     try {
       if (!img.fijada) {
-        // 1. Limpiar el fijado anterior en esta sección
         let query = supabase
           .from('imagenes_galeria')
           .update({ fijada: false })
@@ -209,21 +214,18 @@ export default function GalleryPage() {
         if (resetError) throw resetError;
       }
 
-      // 2. Toggle de la imagen actual
       const { error: updateError } = await supabase
         .from('imagenes_galeria')
         .update({ fijada: !img.fijada })
         .eq('id', img.id);
 
       if (updateError) throw updateError;
-
-      // 3. Recarga forzada de datos
-      await fetchImages();
+      await fetchImages(filter.stage === "TODOS" ? undefined : pId, hId);
     } catch (err) {
       console.error("Detalle técnico del error:", err);
       alert("Error al actualizar. Revisa la consola (F12)");
-  }
-};
+    }
+  };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0 || !confirm(`¿Borrar ${selectedIds.length} imágenes?`)) return
@@ -276,13 +278,8 @@ export default function GalleryPage() {
     } finally { setIsUploading(false) }
   }
 
-  const filteredImages = filter.stage === "TODOS"
-    ? images
-    : filter.subcategory
-      ? images.filter((img) => img.stage === filter.stage && img.subcategory === filter.subcategory)
-      : images.filter((img) => img.stage === filter.stage)
+  const filteredImages = images; // Ya vienen filtradas por fetchImages
 
-  // Constantes de permisos y estado
   const isAdmin = userRole === 'admin' || userRole === 'editor';
   const hasPendingChanges = Object.keys(editedNames).length > 0;
 
@@ -295,7 +292,6 @@ export default function GalleryPage() {
     >
       <Navigation />
 
-      {/* --- OVERLAY GLOBAL DE ARRASTRE --- */}
       {isDraggingGlobal && (
         <div className="fixed inset-0 z-[200] bg-primary/20 backdrop-blur-md border-[6px] border-dashed border-primary flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
           <div className="bg-black/80 p-10 rounded-3xl border-2 border-primary flex flex-col items-center gap-6 shadow-[0_0_50px_rgba(var(--primary),0.3)]">
@@ -308,7 +304,6 @@ export default function GalleryPage() {
       <div className="container mx-auto px-4 pt-32 pb-20">
         <h1 className="text-center text-4xl md:text-6xl font-bold mb-12 uppercase tracking-widest italic">Galería <span className="text-primary">Outraiders</span></h1>
 
-        {/* --- PANEL DE ACCIONES --- */}
         <div className="flex flex-col items-center gap-4 mb-12">
           {isAdmin && !isSelectionMode && (
             <Button onClick={() => setShowUploadModal(true)} className="bg-primary text-black font-bold px-8 py-6 text-lg uppercase tracking-tighter hover:bg-primary/80 transition-all">
@@ -346,41 +341,27 @@ export default function GalleryPage() {
 
         {/* --- FILTROS --- */}
         <div className="flex justify-center gap-4 flex-wrap mb-12">
-          {/* Botón TODOS: Carga aleatorias y resetea subcategoría */}
           <button 
-            onClick={() => { 
-              setFilter({ stage: "TODOS", subcategory: null }); 
-              fetchImages(); 
-            }} 
+            onClick={() => { setFilter({ stage: "TODOS", subcategory: null }); fetchImages(); }} 
             className={`px-6 py-2 rounded border-2 transition-all font-bold ${filter.stage === "TODOS" ? "bg-primary text-black border-primary" : "border-primary/20 hover:border-primary/50"}`}
           >
             TODOS
           </button>
-
           {filtros.map(p => (
             <div key={p.id} className="relative" onMouseEnter={() => setHoveredStage(p.nombre)} onMouseLeave={() => setHoveredStage(null)}>
-              {/* Botón PADRE: Carga por Etapa (Cronológico, sin PIN prioritario) */}
               <button 
-                onClick={() => { 
-                  setFilter({ stage: p.nombre, subcategory: null }); 
-                  fetchImages(p.id); 
-                }} 
+                onClick={() => { setFilter({ stage: p.nombre, subcategory: null }); fetchImages(p.id); }} 
                 className={`px-6 py-2 rounded border-2 flex items-center gap-2 font-bold transition-all ${filter.stage === p.nombre ? "bg-primary text-black border-primary" : "border-primary/20 hover:border-primary/50"}`}
               >
                 {p.nombre} {p.filtros_hijo.length > 0 && <ChevronDown className="w-4 h-4" />}
               </button>
-
-              {/* Menú Desplegable de HIJOS */}
               {hoveredStage === p.nombre && p.filtros_hijo.length > 0 && (
                 <div className="absolute top-full left-0 pt-2 w-56 z-50">
                   <div className="bg-black border-2 border-primary/30 rounded overflow-hidden shadow-2xl backdrop-blur-md">
                     {p.filtros_hijo.map(h => (
                       <button 
                         key={h.id} 
-                        onClick={() => { 
-                          setFilter({ stage: p.nombre, subcategory: h.nombre }); 
-                          fetchImages(p.id, h.id); // Carga Etapa + Subcategoría (Habilita PIN)
-                        }} 
+                        onClick={() => { setFilter({ stage: p.nombre, subcategory: h.nombre }); fetchImages(p.id, h.id); }} 
                         className="w-full text-left px-5 py-3 hover:bg-primary/20 text-sm font-medium border-b border-primary/10 last:border-b-0 transition-colors"
                       >
                         {h.nombre}
@@ -410,14 +391,12 @@ export default function GalleryPage() {
                   
                   <Image src={img.src} alt={img.alt} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
 
-                  {/* 1. Icono estático (El Pin que indica que YA está fijada) */}
                   {img.fijada && isAdmin && filter.subcategory !== null && (
                     <div className="absolute top-3 left-3 bg-primary text-black p-1.5 rounded-md shadow-lg z-10 animate-in fade-in zoom-in">
                       <Pin className="w-4 h-4 fill-black" />
                     </div>
                   )}
 
-                  {/* 2. Botón de acción (El que el Admin clica para cambiar el estado) */}
                   {isAdmin && !isSelectionMode && filter.subcategory !== null && (
                     <button 
                       onClick={(e) => toggleFijar(e, img)} 
@@ -431,7 +410,6 @@ export default function GalleryPage() {
                     <div className="absolute top-4 right-4 z-20">{isSel ? <CheckCircle2 className="w-8 h-8 text-primary fill-black" /> : <Circle className="w-8 h-8 text-white/50" />}</div>
                   )}
 
-                  {/* Información Hover / Edición */}
                   <div className={`absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent flex flex-col justify-end p-5 transition-opacity ${isSelectionMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                     <p className="text-[10px] font-bold text-primary uppercase mb-1 tracking-tighter">{img.stage} {img.subcategory && `// ${img.subcategory}`}</p>
                     
@@ -483,7 +461,7 @@ export default function GalleryPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Descripción Opcional (Para todas)</label>
+                  <label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Descripción Opcional</label>
                   <input type="text" value={uploadData.alt} className="w-full bg-zinc-900 border-2 border-primary/20 p-3 rounded text-sm text-white outline-none focus:border-primary" 
                     onChange={e => setUploadData({...uploadData, alt: e.target.value})} placeholder="Dejar vacío para sin nombre" />
                 </div>
@@ -504,7 +482,6 @@ export default function GalleryPage() {
           </div>
         )}
 
-        {/* --- LIGHTBOX --- */}
         {selectedImage !== null && !isSelectionMode && (
           <div className="fixed inset-0 bg-black/98 z-[400] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setSelectedImage(null)}>
             <div className="relative w-full h-full flex items-center justify-center">
