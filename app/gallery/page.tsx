@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Navigation } from "@/components/navigation"
 import { X, Upload, ChevronDown, Loader2, Trash2, CheckCircle2, Circle, Pin, PinOff, Files, Save, Edit3 } from "lucide-react"
 import Image from "next/image"
@@ -48,16 +48,21 @@ export default function GalleryPage() {
   const [selectedImage, setSelectedImage] = useState<number | null>(null)
 
   // Estados de Filtro y UI
-  const [filter, setFilter] = useState<{ stage: string; subcategory: string | null }>({ stage: "TODOS", subcategory: null })
+  const [filter, setFilter] = useState<{ stage: string; subcategory: string | null; padreId?: string; hijoId?: string | null }>({ 
+    stage: "TODOS", 
+    subcategory: null 
+  })
   const [hoveredStage, setHoveredStage] = useState<string | null>(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [isDraggingGlobal, setIsDraggingGlobal] = useState(false)
   const [uploadData, setUploadData] = useState({ padreId: "", hijoId: "", alt: "", files: [] as File[] })
 
-  // 1. CARGA DE IMÁGENES
-  async function fetchImages(padreId?: string, hijoId?: string | null) {
+  // 1. CARGA DE IMÁGENES (Memorizada)
+  const fetchImages = useCallback(async (padreId?: string, hijoId?: string | null) => {
     try {
       setLoading(true);
+      console.log("📸 Galería: Cargando imágenes...", { padreId, hijoId });
+      
       let data;
       let error;
 
@@ -75,18 +80,15 @@ export default function GalleryPage() {
           `);
 
         if (hijoId) {
-          query = query
-            .eq('filtro_padre_id', padreId)
-            .eq('filtro_hijo_id', hijoId)
-            .order('fijada', { ascending: false })
-            .order('created_at', { ascending: false });
+          query = query.eq('filtro_padre_id', padreId).eq('filtro_hijo_id', hijoId);
         } else {
-          query = query
-            .eq('filtro_padre_id', padreId)
-            .order('created_at', { ascending: false });
+          query = query.eq('filtro_padre_id', padreId);
         }
         
-        const res = await query;
+        const res = await query
+          .order('fijada', { ascending: false })
+          .order('created_at', { ascending: false });
+          
         data = res.data;
         error = res.error;
       }
@@ -105,50 +107,38 @@ export default function GalleryPage() {
           filtro_hijo_id: img.filtro_hijo_id
         }));
         setImages(formatted);
+        console.log("✅ Galería: Imágenes renderizadas");
       }
     } catch (err) {
-      console.error("Error:", err);
+      console.error("❌ Error en fetchImages:", err);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  // 2. INICIALIZACIÓN (CORREGIDA)
+  // 2. INICIALIZACIÓN
   useEffect(() => {
     async function init() {
-      try {
-        setLoading(true)
-        const { data: fData } = await supabase
-          .from('filtros_padre')
-          .select(`
-            id, 
-            nombre, 
-            filtros_hijo (
-              id, 
-              nombre,
-              orden
-            )
-          `)
-          .order('orden', { ascending: true })
-          .order('orden', { foreignTable: 'filtros_hijo', ascending: true });
+      console.log("⚙️ Galería: Iniciando servicios...");
+      const { data: fData } = await supabase
+        .from('filtros_padre')
+        .select(`id, nombre, filtros_hijo (id, nombre, orden)`)
+        .order('orden', { ascending: true })
+        .order('orden', { foreignTable: 'filtros_hijo', ascending: true });
 
-        if (fData) {
-          const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS")
-          setFiltros(lista)
-          if (lista.length > 0) {
-            setUploadData(prev => ({ 
-              ...prev, 
-              padreId: lista[0].id, 
-              hijoId: lista[0].filtros_hijo?.[0]?.id || "" 
-            }))
-          }
+      if (fData) {
+        const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS")
+        setFiltros(lista)
+        if (lista.length > 0) {
+          setUploadData(prev => ({ 
+            ...prev, 
+            padreId: lista[0].id, 
+            hijoId: lista[0].filtros_hijo?.[0]?.id || "" 
+          }))
         }
-        await fetchImages();
-      } catch (err) {
-        console.error("Error en init:", err)
-      } finally {
-        setLoading(false)
       }
+      // Llamada inicial
+      await fetchImages();
     }
 
     init();
@@ -163,12 +153,10 @@ export default function GalleryPage() {
       }
     })
 
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+    return () => subscription.unsubscribe();
+  }, [fetchImages]);
 
-  // 3. LÓGICA DRAG & DROP GLOBAL
+  // 3. HANDLERS UI
   const handleGlobalDragOver = (e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation()
     if ((userRole === 'admin' || userRole === 'editor') && !isSelectionMode) setIsDraggingGlobal(true)
@@ -191,49 +179,18 @@ export default function GalleryPage() {
   }
 
   // 4. ACCIONES ADMIN
-  const handleSelectAll = () => {
-    if (selectedIds.length === images.length) setSelectedIds([])
-    else setSelectedIds(images.map(img => img.id))
-  }
-
   const toggleFijar = async (e: React.MouseEvent, img: any) => {
     e.stopPropagation();
-    const pId = img.filtro_padre_id || img.padreId;
-    const hId = img.filtro_hijo_id || img.hijoId;
-
-    if (!pId || pId === "undefined") {
-      alert("Error de sincronización: Refresca la página");
-      return;
-    }
-
     try {
       if (!img.fijada) {
-        let query = supabase
-          .from('imagenes_galeria')
-          .update({ fijada: false })
-          .eq('filtro_padre_id', pId)
-          .eq('fijada', true);
-
-        if (hId && hId !== "undefined") {
-          query = query.eq('filtro_hijo_id', hId);
-        } else {
-          query = query.is('filtro_hijo_id', null);
-        }
-
-        const { error: resetError } = await query;
-        if (resetError) throw resetError;
+        let query = supabase.from('imagenes_galeria').update({ fijada: false }).eq('filtro_padre_id', img.filtro_padre_id).eq('fijada', true);
+        if (img.filtro_hijo_id) query = query.eq('filtro_hijo_id', img.filtro_hijo_id);
+        else query = query.is('filtro_hijo_id', null);
+        await query;
       }
-
-      const { error: updateError } = await supabase
-        .from('imagenes_galeria')
-        .update({ fijada: !img.fijada })
-        .eq('id', img.id);
-
-      if (updateError) throw updateError;
-      await fetchImages(filter.stage === "TODOS" ? undefined : pId, hId);
-    } catch (err) {
-      console.error(err);
-    }
+      await supabase.from('imagenes_galeria').update({ fijada: !img.fijada }).eq('id', img.id);
+      fetchImages(filter.padreId, filter.hijoId);
+    } catch (err) { console.error(err); }
   };
 
   const handleDeleteSelected = async () => {
@@ -246,7 +203,7 @@ export default function GalleryPage() {
         await supabase.storage.from('galeria').remove(paths)
       }
       await supabase.from('imagenes_galeria').delete().in('id', selectedIds)
-      setSelectedIds([]); setIsSelectionMode(false); await fetchImages()
+      setSelectedIds([]); setIsSelectionMode(false); await fetchImages(filter.padreId, filter.hijoId)
     } finally { setIsDeleting(false) }
   }
 
@@ -258,7 +215,7 @@ export default function GalleryPage() {
       for (const [id, newAlt] of entries) {
         await supabase.from('imagenes_galeria').update({ alt: newAlt.trim() }).eq('id', id)
       }
-      setEditedNames({}); setIsSelectionMode(false); await fetchImages()
+      setEditedNames({}); setIsSelectionMode(false); await fetchImages(filter.padreId, filter.hijoId)
     } finally { setIsSavingNames(false) }
   }
 
@@ -270,20 +227,19 @@ export default function GalleryPage() {
       for (let i = 0; i < uploadData.files.length; i++) {
         const file = uploadData.files[i]
         setUploadProgress(prev => ({ ...prev, current: i + 1 }))
-        const options = { maxSizeMB: 0.8, maxWidthOrHeight: 1920 }
-        const compressed = await imageCompression(file, options)
-        const path = `${user.id}/${Math.random().toString(36).substring(2)}`
+        const compressed = await imageCompression(file, { maxSizeMB: 0.8, maxWidthOrHeight: 1920 })
+        const path = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}`
         await supabase.storage.from('galeria').upload(path, compressed)
         const { data: { publicUrl } } = supabase.storage.from('galeria').getPublicUrl(path)
         await supabase.from('imagenes_galeria').insert([{
-          url: publicUrl, 
-          alt: uploadData.alt.trim(), 
+          url: publicUrl, alt: uploadData.alt.trim(), 
           filtro_padre_id: uploadData.padreId, 
           filtro_hijo_id: uploadData.hijoId || null, 
           subido_por: user.id
         }])
       }
-      setUploadData(p => ({...p, files: [], alt: ""})); setShowUploadModal(false); await fetchImages()
+      setUploadData(p => ({...p, files: [], alt: ""})); setShowUploadModal(false); 
+      await fetchImages(filter.padreId, filter.hijoId)
     } finally { setIsUploading(false) }
   }
 
@@ -326,12 +282,12 @@ export default function GalleryPage() {
                 </Button>
               ) : (
                 <>
-                  <Button onClick={handleSelectAll} variant="secondary" className="font-bold border-2 border-primary/20">
+                  <Button onClick={() => { if (selectedIds.length === images.length) setSelectedIds([]); else setSelectedIds(images.map(img => img.id)) }} variant="secondary" className="font-bold border-2 border-primary/20">
                     {selectedIds.length === images.length ? "Deseleccionar Todo" : "Seleccionar Todo"}
                   </Button>
                   
                   {hasPendingChanges && (
-                    <Button onClick={handleSaveAllChanges} disabled={isSavingNames} className="bg-emerald-600 text-white font-bold px-6 border-2 border-emerald-400/50 animate-in fade-in slide-in-from-top-2">
+                    <Button onClick={handleSaveAllChanges} disabled={isSavingNames} className="bg-emerald-600 text-white font-bold px-6 border-2 border-emerald-400/50">
                       {isSavingNames ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 w-4 h-4" />} Guardar Nombres
                     </Button>
                   )}
@@ -357,7 +313,7 @@ export default function GalleryPage() {
           {filtros.map(p => (
             <div key={p.id} className="relative" onMouseEnter={() => setHoveredStage(p.nombre)} onMouseLeave={() => setHoveredStage(null)}>
               <button 
-                onClick={() => { setFilter({ stage: p.nombre, subcategory: null }); fetchImages(p.id); }} 
+                onClick={() => { setFilter({ stage: p.nombre, subcategory: null, padreId: p.id }); fetchImages(p.id); }} 
                 className={`px-6 py-2 rounded border-2 flex items-center gap-2 font-bold transition-all ${filter.stage === p.nombre ? "bg-primary text-black border-primary" : "border-primary/20 hover:border-primary/50"}`}
               >
                 {p.nombre} {p.filtros_hijo.length > 0 && <ChevronDown className="w-4 h-4" />}
@@ -368,7 +324,7 @@ export default function GalleryPage() {
                     {p.filtros_hijo.map(h => (
                       <button 
                         key={h.id} 
-                        onClick={() => { setFilter({ stage: p.nombre, subcategory: h.nombre }); fetchImages(p.id, h.id); }} 
+                        onClick={() => { setFilter({ stage: p.nombre, subcategory: h.nombre, padreId: p.id, hijoId: h.id }); fetchImages(p.id, h.id); }} 
                         className="w-full text-left px-5 py-3 hover:bg-primary/20 text-sm font-medium border-b border-primary/10 last:border-b-0 transition-colors"
                       >
                         {h.nombre}
@@ -389,8 +345,6 @@ export default function GalleryPage() {
             images.map((img, idx) => {
               const isSel = selectedIds.includes(img.id)
               const currentName = editedNames[img.id] !== undefined ? editedNames[img.id] : img.alt;
-              const hasName = currentName && currentName.trim() !== "";
-
               return (
                 <div key={img.id} 
                   onClick={() => isSelectionMode ? setSelectedIds(prev => prev.includes(img.id) ? prev.filter(i => i !== img.id) : [...prev, img.id]) : setSelectedImage(idx)}
@@ -405,10 +359,7 @@ export default function GalleryPage() {
                   )}
 
                   {isAdmin && !isSelectionMode && filter.subcategory !== null && (
-                    <button 
-                      onClick={(e) => toggleFijar(e, img)} 
-                      className="absolute top-3 right-3 p-2 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary z-20"
-                    >
+                    <button onClick={(e) => toggleFijar(e, img)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary z-20">
                       {img.fijada ? <PinOff className="w-5 h-5" /> : <Pin className="w-5 h-5" />}
                     </button>
                   )}
@@ -419,18 +370,11 @@ export default function GalleryPage() {
 
                   <div className={`absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent flex flex-col justify-end p-5 transition-opacity ${isSelectionMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                     <p className="text-[10px] font-bold text-primary uppercase mb-1 tracking-tighter">{img.stage} {img.subcategory && `// ${img.subcategory}`}</p>
-                    
                     {isSelectionMode ? (
-                      <input 
-                        type="text" 
-                        value={currentName}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => setEditedNames({ ...editedNames, [img.id]: e.target.value })}
-                        className="w-full bg-white/10 border border-primary/30 rounded px-2 py-1 text-sm text-white outline-none focus:border-primary placeholder:text-white/20"
-                        placeholder="Sin nombre..."
-                      />
+                      <input type="text" value={currentName} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditedNames({ ...editedNames, [img.id]: e.target.value })}
+                        className="w-full bg-white/10 border border-primary/30 rounded px-2 py-1 text-sm text-white outline-none focus:border-primary placeholder:text-white/20" placeholder="Sin nombre..." />
                     ) : (
-                      hasName && <p className="text-white text-sm font-medium truncate">{currentName}</p>
+                      img.alt && <p className="text-white text-sm font-medium truncate">{img.alt}</p>
                     )}
                   </div>
                 </div>
@@ -441,7 +385,7 @@ export default function GalleryPage() {
           )}
         </div>
 
-        {/* --- MODAL CARGA MÚLTIPLE --- */}
+        {/* --- MODAL CARGA --- */}
         {showUploadModal && (
           <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4 animate-in zoom-in duration-200" onClick={() => setShowUploadModal(false)}>
             <div className="bg-black border-2 border-primary/30 rounded-lg p-8 max-w-md w-full" onClick={e => e.stopPropagation()}>
@@ -490,7 +434,7 @@ export default function GalleryPage() {
         )}
 
         {selectedImage !== null && !isSelectionMode && (
-          <div className="fixed inset-0 bg-black/98 z-[400] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setSelectedImage(null)}>
+          <div className="fixed inset-0 bg-black/98 z-[400] flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
             <div className="relative w-full h-full flex items-center justify-center">
               <Image src={images[selectedImage].src} alt="View" width={1920} height={1080} className="object-contain max-h-full w-auto" />
               {images[selectedImage].alt && (
