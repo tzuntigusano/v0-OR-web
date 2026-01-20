@@ -53,26 +53,29 @@ export default function GalleryPage() {
   const [isDraggingGlobal, setIsDraggingGlobal] = useState(false)
   const [uploadData, setUploadData] = useState({ padreId: "", hijoId: "", alt: "", files: [] as File[] })
 
-  // --- 1. FUNCIÓN DE CARGA OPTIMIZADA ---
-  const fetchImages = useCallback(async (padreId?: string, hijoId?: string | null) => {
+  // --- 1. FUNCIÓN DE CARGA OPTIMIZADA (CON ABORT SIGNAL) ---
+  const fetchImages = useCallback(async (padreId?: string, hijoId?: string | null, signal?: AbortSignal) => {
     try {
       setLoading(true);
-      console.log("📸 [CHECKPOINT 1] Entrando en fetchImages");
+      console.log("📸 [FETCH] Iniciando carga de imágenes...");
       
       let data;
       let error;
 
       if (!padreId || padreId === "TODOS") {
-        console.log("📸 [CHECKPOINT 2] Ejecutando RPC get_random_images");
+        // Nota: supabase.rpc no acepta signal directamente en todas las versiones, 
+        // pero se ejecuta rápido. Para mayor seguridad, las queries .from sí lo usan.
         const res = await supabase.rpc('get_random_images', { limit_count: 40 });
         data = res.data;
         error = res.error;
       } else {
-        console.log("📸 [CHECKPOINT 2] Ejecutando Query filtrada");
         let query = supabase.from('imagenes_galeria').select(`
           id, url, alt, fijada, filtro_padre_id, filtro_hijo_id,
           filtros_padre (nombre), filtros_hijo (nombre)
         `);
+
+        // Aplicamos el signal para abortar la petición si se refresca la página
+        if (signal) query = query.abortSignal(signal);
 
         if (hijoId) query = query.eq('filtro_padre_id', padreId).eq('filtro_hijo_id', hijoId);
         else query = query.eq('filtro_padre_id', padreId);
@@ -82,10 +85,7 @@ export default function GalleryPage() {
         error = res.error;
       }
 
-      if (error) {
-        console.error("❌ [CHECKPOINT ERROR] Error en la consulta:", error);
-        throw error;
-      }
+      if (error) throw error;
 
       if (data) {
         setImages(data.map((img: any) => ({
@@ -98,35 +98,34 @@ export default function GalleryPage() {
           filtro_padre_id: img.filtro_padre_id,
           filtro_hijo_id: img.filtro_hijo_id
         })));
-        console.log("✅ [CHECKPOINT 3] Imágenes cargadas en el estado:", data.length);
+        console.log("✅ [FETCH] Éxito");
       }
-    } catch (err) {
-      console.error("❌ [FETCH FATAL ERROR]:", err);
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.log("X [FETCH] Petición cancelada por el sistema");
+      } else {
+        console.error("❌ [FETCH FATAL ERROR]:", err);
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // --- 2. EFECTO INICIAL (RE-ESTRUCTURADO PARA EVITAR BLOQUEOS) ---
+  // --- 2. EFECTO INICIAL (CON CONTROLADOR DE ABORTO Y LIMPIEZA) ---
   useEffect(() => {
-    console.log("🚀 [INIT] Componente montado");
+    const controller = new AbortController();
+    console.log("🚀 [INIT] Montando componente y preparando controlador");
 
-    // Lanzamos la carga de imágenes de inmediato
-    fetchImages();
-
-    // Cargamos filtros de forma independiente
-    const loadFilters = async () => {
-      console.log("⚙️ [FILTERS] Iniciando carga de filtros...");
+    const init = async () => {
       try {
-        const { data: fData, error } = await supabase
+        // Carga de filtros con signal
+        const { data: fData } = await supabase
           .from('filtros_padre')
           .select(`id, nombre, filtros_hijo (id, nombre, orden)`)
+          .abortSignal(controller.signal)
           .order('orden', { ascending: true });
-        
-        if (error) throw error;
 
         if (fData) {
-          console.log("✅ [FILTERS] Filtros recibidos con éxito");
           const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS");
           setFiltros(lista);
           if (lista.length > 0) {
@@ -137,12 +136,15 @@ export default function GalleryPage() {
             }));
           }
         }
-      } catch (err) {
-        console.error("❌ [FILTERS ERROR]:", err);
+        
+        // Carga de imágenes inicial
+        await fetchImages(undefined, undefined, controller.signal);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') console.error("Error en init:", err);
       }
     };
 
-    loadFilters();
+    init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
@@ -152,7 +154,12 @@ export default function GalleryPage() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // LIMPIEZA: Se ejecuta al hacer F5 o navegar a otra página
+    return () => {
+      console.log("🧹 [CLEANUP] Cancelando procesos activos...");
+      controller.abort();
+      subscription.unsubscribe();
+    };
   }, [fetchImages]);
 
   // --- 3. FUNCIONES DRAG & DROP ---
