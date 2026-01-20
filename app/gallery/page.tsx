@@ -13,7 +13,7 @@ import imageCompression from 'browser-image-compression'
 interface FiltroPadre {
   id: string
   nombre: string
-  filtros_hijo: { id: string; nombre: string; orden: number }[] // Añadido orden aquí
+  filtros_hijo: { id: string; nombre: string; orden: number }[]
 }
 
 interface GaleriaImagen {
@@ -113,48 +113,59 @@ export default function GalleryPage() {
     }
   }
 
-  // 2. INICIALIZACIÓN
+  // 2. INICIALIZACIÓN (CORREGIDA)
   useEffect(() => {
     async function init() {
-      setLoading(true)
-      const { data: fData } = await supabase
-        .from('filtros_padre')
-        .select(`
-          id, 
-          nombre, 
-          filtros_hijo (
+      try {
+        setLoading(true)
+        const { data: fData } = await supabase
+          .from('filtros_padre')
+          .select(`
             id, 
-            nombre,
-            orden
-          )
-        `)
-        .order('orden', { ascending: true })
-        .order('orden', { foreignTable: 'filtros_hijo', ascending: true }); // Ordena los hijos por su columna 'orden'
+            nombre, 
+            filtros_hijo (
+              id, 
+              nombre,
+              orden
+            )
+          `)
+          .order('orden', { ascending: true })
+          .order('orden', { foreignTable: 'filtros_hijo', ascending: true });
 
-      if (fData) {
-        const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS")
-        setFiltros(lista)
-        if (lista.length > 0) {
-          setUploadData(prev => ({ 
-            ...prev, 
-            padreId: lista[0].id, 
-            hijoId: lista[0].filtros_hijo?.[0]?.id || "" 
-          }))
+        if (fData) {
+          const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS")
+          setFiltros(lista)
+          if (lista.length > 0) {
+            setUploadData(prev => ({ 
+              ...prev, 
+              padreId: lista[0].id, 
+              hijoId: lista[0].filtros_hijo?.[0]?.id || "" 
+            }))
+          }
         }
+        await fetchImages();
+      } catch (err) {
+        console.error("Error en init:", err)
+      } finally {
+        setLoading(false)
       }
-      await fetchImages();
-      setLoading(false)
     }
-    init()
+
+    init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
         const { data } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id).maybeSingle()
         setUserRole(data?.role || null)
-      } else setUserRole(null)
+      } else {
+        setUserRole(null)
+      }
     })
-    return () => subscription.unsubscribe()
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   // 3. LÓGICA DRAG & DROP GLOBAL
@@ -181,8 +192,8 @@ export default function GalleryPage() {
 
   // 4. ACCIONES ADMIN
   const handleSelectAll = () => {
-    if (selectedIds.length === filteredImages.length) setSelectedIds([])
-    else setSelectedIds(filteredImages.map(img => img.id))
+    if (selectedIds.length === images.length) setSelectedIds([])
+    else setSelectedIds(images.map(img => img.id))
   }
 
   const toggleFijar = async (e: React.MouseEvent, img: any) => {
@@ -191,8 +202,7 @@ export default function GalleryPage() {
     const hId = img.filtro_hijo_id || img.hijoId;
 
     if (!pId || pId === "undefined") {
-      console.error("Error crítico: El objeto imagen no tiene filtro_padre_id", img);
-      alert("Error de sincronización: Refresca la página con CTRL+F5");
+      alert("Error de sincronización: Refresca la página");
       return;
     }
 
@@ -222,8 +232,7 @@ export default function GalleryPage() {
       if (updateError) throw updateError;
       await fetchImages(filter.stage === "TODOS" ? undefined : pId, hId);
     } catch (err) {
-      console.error("Detalle técnico del error:", err);
-      alert("Error al actualizar. Revisa la consola (F12)");
+      console.error(err);
     }
   };
 
@@ -278,8 +287,6 @@ export default function GalleryPage() {
     } finally { setIsUploading(false) }
   }
 
-  const filteredImages = images; // Ya vienen filtradas por fetchImages
-
   const isAdmin = userRole === 'admin' || userRole === 'editor';
   const hasPendingChanges = Object.keys(editedNames).length > 0;
 
@@ -320,7 +327,7 @@ export default function GalleryPage() {
               ) : (
                 <>
                   <Button onClick={handleSelectAll} variant="secondary" className="font-bold border-2 border-primary/20">
-                    {selectedIds.length === filteredImages.length ? "Deseleccionar Todo" : "Seleccionar Todo"}
+                    {selectedIds.length === images.length ? "Deseleccionar Todo" : "Seleccionar Todo"}
                   </Button>
                   
                   {hasPendingChanges && (
@@ -378,8 +385,8 @@ export default function GalleryPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {loading ? (
             <div className="col-span-full flex flex-col items-center py-20"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>
-          ) : filteredImages.length > 0 ? (
-            filteredImages.map((img, idx) => {
+          ) : images.length > 0 ? (
+            images.map((img, idx) => {
               const isSel = selectedIds.includes(img.id)
               const currentName = editedNames[img.id] !== undefined ? editedNames[img.id] : img.alt;
               const hasName = currentName && currentName.trim() !== "";
@@ -485,10 +492,10 @@ export default function GalleryPage() {
         {selectedImage !== null && !isSelectionMode && (
           <div className="fixed inset-0 bg-black/98 z-[400] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setSelectedImage(null)}>
             <div className="relative w-full h-full flex items-center justify-center">
-              <Image src={filteredImages[selectedImage].src} alt="View" width={1920} height={1080} className="object-contain max-h-full w-auto" />
-              {filteredImages[selectedImage].alt && (
+              <Image src={images[selectedImage].src} alt="View" width={1920} height={1080} className="object-contain max-h-full w-auto" />
+              {images[selectedImage].alt && (
                 <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/80 px-8 py-3 rounded-full border border-primary/30 backdrop-blur-md">
-                  <p className="text-primary font-bold tracking-[0.2em] uppercase text-sm italic">{filteredImages[selectedImage].alt}</p>
+                  <p className="text-primary font-bold tracking-[0.2em] uppercase text-sm italic">{images[selectedImage].alt}</p>
                 </div>
               )}
             </div>
