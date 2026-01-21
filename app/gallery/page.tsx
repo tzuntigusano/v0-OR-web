@@ -191,7 +191,7 @@ export default function GalleryPage() {
   // --- 3. EFECTO DE AUTENTICACIÓN (SEPARADO) ---
   useEffect(() => {
     console.log("🔐 [AUTH] Configurando escucha de sesión...");
-    
+    const controller = new AbortController(); 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (controller.signal.aborted) return; // Si ya refrescamos, no hagas nada
       
