@@ -69,12 +69,12 @@ export function Navigation() {
 
   return (
     <nav
-      className={`fixed inset-x-0 top-0 z-[100] transition-all duration-300 w-full ${
+      className={`fixed top-0 left-0 right-0 z-[100] w-full transition-all duration-300 ${
         scrolled || mobileMenuOpen ? "bg-black/90 backdrop-blur-md border-b-2 border-primary/20" : "bg-transparent"
       }`}
     >
       <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        {/* LOGO */}
+        {/* LOGO E ICONO */}
         <Link href="/" className="flex items-center gap-3 shrink-0">
           <Image
             src="/images/outraiders-logoanagrama-w.png"
@@ -94,7 +94,7 @@ export function Navigation() {
           />
         </Link>
 
-        {/* CONTENEDOR DERECHO */}
+        {/* CONTENEDOR DERECHO: SECCIONES + BOTONES */}
         <div className="flex items-center gap-4 md:gap-8 ml-auto">
           {/* SECCIONES PC */}
           <div className="hidden md:flex items-center gap-8">
@@ -126,6 +126,7 @@ export function Navigation() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button className="flex items-center hover:opacity-80 transition-opacity focus:outline-none shrink-0">
+                        {/* AVATAR CORREGIDO */}
                         <div className="relative w-8 h-8 md:w-9 md:h-9">
                           <Image
                             src={avatarUrl}
