@@ -94,9 +94,9 @@ export function Navigation() {
           />
         </Link>
 
-        {/* CONTENEDOR DERECHO: SECCIONES + BOTONES */}
+        {/* CONTENEDOR DERECHO */}
         <div className="flex items-center gap-4 md:gap-8 ml-auto">
-          {/* SECCIONES PC - Restaurada fuente original */}
+          {/* SECCIONES PC */}
           <div className="hidden md:flex items-center gap-8">
             {isLandingPage && (
               <>
@@ -153,9 +153,10 @@ export function Navigation() {
                 ) : (
                   <Button
                     onClick={login}
-                    className="bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold h-8 px-2 md:h-10 md:px-6 text-[10px] md:text-sm shrink-0"
+                    className="bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold h-8 px-2 md:h-10 md:px-6 text-[10px] md:text-sm shrink-0 flex items-center gap-2"
                   >
                     LOGIN
+                    <Image src="/discord-logo.png" alt="Discord" width={14} height={14} />
                   </Button>
                 )}
               </div>
@@ -165,13 +166,13 @@ export function Navigation() {
               className="md:hidden text-primary p-1 shrink-0" 
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              {mobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* MOBILE DROPDOWN - Ahora usa la misma fuente que PC */}
+      {/* MOBILE DROPDOWN */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-black/95 border-b-2 border-primary/20 flex flex-col p-6 gap-6 animate-in slide-in-from-top duration-300">
           {isLandingPage && (
