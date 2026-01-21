@@ -26,7 +26,7 @@ export function Navigation() {
   const isLandingPage = pathname === "/"
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50)
+    const handleScroll = () => setScrolled(window.scrollY > 20)
     const checkUser = async () => {
       const { data } = await supabase.auth.getSession()
       if (data?.session) setUser(data.session.user)
@@ -69,12 +69,12 @@ export function Navigation() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled || mobileMenuOpen ? "bg-black/80 backdrop-blur-md border-b-2 border-primary/20" : "bg-transparent"
+      className={`fixed inset-x-0 top-0 z-[100] transition-all duration-300 w-full ${
+        scrolled || mobileMenuOpen ? "bg-black/90 backdrop-blur-md border-b-2 border-primary/20" : "bg-transparent"
       }`}
     >
       <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        {/* LOGO E ICONO */}
+        {/* LOGO */}
         <Link href="/" className="flex items-center gap-3 shrink-0">
           <Image
             src="/images/outraiders-logoanagrama-w.png"
