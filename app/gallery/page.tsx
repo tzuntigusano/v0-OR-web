@@ -113,7 +113,7 @@ export default function GalleryPage() {
 
   // --- 2. EFECTO DE CARGA DE DATOS ---
   useEffect(() => {
-    const controller = new AbortController();
+    const dataController = new AbortController(); // Controlador específico para datos
     
     const init = async () => {
       console.log("🚀 [INIT] Iniciando carga de datos...");
@@ -126,15 +126,14 @@ export default function GalleryPage() {
               nombre, 
               filtros_hijo (id, nombre, orden)
             `)
-            .abortSignal(controller.signal)
-            .order('orden', { ascending: true }) // Ordena los Padres
-            .order('orden', { foreignTable: 'filtros_hijo', ascending: true }) // <--- ESTO ORDENA LOS HIJOS
+            .abortSignal(dataController.signal)
+            .order('orden', { ascending: true })
+            .order('orden', { foreignTable: 'filtros_hijo', ascending: true })
             .then(({ data: fData }) => {
               if (fData) {
                 const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS");
                 setFiltros(lista);
 
-                // IMPORTANTE: Restauramos la selección por defecto para el modal de subida
                 if (lista.length > 0) {
                   setUploadData(p => ({ 
                     ...p, 
@@ -144,7 +143,7 @@ export default function GalleryPage() {
                 }
               }
             }),
-          fetchImages(undefined, undefined, controller.signal)
+          fetchImages(undefined, undefined, dataController.signal)
         ]);
       } catch (err: any) {
         if (err.name !== 'AbortError') console.error("Error en init:", err);
@@ -155,9 +154,39 @@ export default function GalleryPage() {
 
     return () => {
       console.log("🧹 [CLEANUP] Abortando peticiones de datos...");
-      controller.abort();
+      dataController.abort();
     };
   }, [fetchImages]);
+
+  // --- 3. EFECTO DE AUTENTICACIÓN (CORREGIDO) ---
+  useEffect(() => {
+    const authController = new AbortController(); // Creado específicamente aquí
+    console.log("🔐 [AUTH] Configurando escucha de sesión...");
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      // Usamos el controlador de este efecto, no el del anterior
+      if (authController.signal.aborted) return; 
+      
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        const { data } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+        setUserRole(data?.role || null);
+      } else {
+        setUserRole(null);
+      }
+    });
+
+    return () => {
+      console.log("🧹 [CLEANUP] Cerrando suscripción Auth...");
+      authController.abort(); // Abortamos el de auth
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // --- 3. EFECTO DE AUTENTICACIÓN (SEPARADO) ---
   useEffect(() => {
