@@ -84,7 +84,6 @@ export function Navigation() {
             className="object-contain h-10 w-10 md:h-12 md:w-12"
             priority
           />
-          {/* 1. OCULTAR TEXTO "OUTRAIDERS" CUANDO NO HAY ESPACIO (Hidden en lg para evitar choque) */}
           <Image
             src="/images/outraiders-anagrama-1-recortado.png"
             alt="Outraiders Logo"
@@ -97,21 +96,20 @@ export function Navigation() {
 
         {/* CONTENEDOR DERECHO: SECCIONES + BOTONES */}
         <div className="flex items-center gap-4 md:gap-8 ml-auto">
-          {/* 4. SECCIONES PEGADAS A LA DERECHA */}
-          <div className="hidden md:flex items-center gap-6">
+          {/* SECCIONES PC - Restaurada fuente original */}
+          <div className="hidden md:flex items-center gap-8">
             {isLandingPage && (
               <>
-                <button onClick={() => scrollToSection("about")} className="text-foreground/80 hover:text-primary transition-colors text-xs font-medium tracking-wide whitespace-nowrap">QUIÉNES SOMOS</button>
-                <button onClick={() => scrollToSection("media")} className="text-foreground/80 hover:text-primary transition-colors text-xs font-medium tracking-wide whitespace-nowrap">CONTENIDO</button>
+                <button onClick={() => scrollToSection("about")} className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">QUIÉNES SOMOS</button>
+                <button onClick={() => scrollToSection("media")} className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">CONTENIDO</button>
               </>
             )}
-            <Link href="/gallery" className="text-foreground/80 hover:text-primary transition-colors text-xs font-medium tracking-wide">GALERÍA</Link>
-            <Link href="/public-comms" className="text-foreground/80 hover:text-primary transition-colors text-xs font-medium tracking-wide whitespace-nowrap">PUBLIC COMMS</Link>
+            <Link href="/gallery" className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide uppercase">GALERÍA</Link>
+            <Link href="/public-comms" className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">PUBLIC COMMS</Link>
           </div>
 
           {/* BOTONES ACCIÓN */}
           <div className="flex items-center gap-2">
-            {/* 2. BOTONES MÁS PEQUEÑOS EN MÓVIL (px-2, text-[10px]) */}
             <Button
               asChild
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold tracking-wide h-8 px-2 md:h-10 md:px-4 text-[10px] md:text-sm shrink-0"
@@ -128,7 +126,6 @@ export function Navigation() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button className="flex items-center hover:opacity-80 transition-opacity focus:outline-none shrink-0">
-                        {/* 3. AVATAR CORREGIDO: width y height fijos para evitar el "punto" */}
                         <div className="relative w-8 h-8 md:w-9 md:h-9">
                           <Image
                             src={avatarUrl}
@@ -168,23 +165,23 @@ export function Navigation() {
               className="md:hidden text-primary p-1 shrink-0" 
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {mobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* MOBILE DROPDOWN */}
+      {/* MOBILE DROPDOWN - Ahora usa la misma fuente que PC */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-black/95 border-b-2 border-primary/20 flex flex-col p-6 gap-6 animate-in slide-in-from-top">
+        <div className="md:hidden bg-black/95 border-b-2 border-primary/20 flex flex-col p-6 gap-6 animate-in slide-in-from-top duration-300">
           {isLandingPage && (
             <>
-              <button onClick={() => scrollToSection("about")} className="text-left text-lg font-bold uppercase italic text-white hover:text-primary">QUIÉNES SOMOS</button>
-              <button onClick={() => scrollToSection("media")} className="text-left text-lg font-bold uppercase italic text-white hover:text-primary">CONTENIDO</button>
+              <button onClick={() => scrollToSection("about")} className="text-left text-sm font-medium tracking-wide uppercase text-white hover:text-primary">QUIÉNES SOMOS</button>
+              <button onClick={() => scrollToSection("media")} className="text-left text-sm font-medium tracking-wide uppercase text-white hover:text-primary">CONTENIDO</button>
             </>
           )}
-          <Link href="/gallery" onClick={() => setMobileMenuOpen(false)} className="text-lg font-bold uppercase italic text-white hover:text-primary">GALERÍA</Link>
-          <Link href="/public-comms" onClick={() => setMobileMenuOpen(false)} className="text-lg font-bold uppercase italic text-white hover:text-primary">PUBLIC COMMS</Link>
+          <Link href="/gallery" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium tracking-wide uppercase text-white hover:text-primary">GALERÍA</Link>
+          <Link href="/public-comms" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium tracking-wide uppercase text-white hover:text-primary">PUBLIC COMMS</Link>
         </div>
       )}
     </nav>
