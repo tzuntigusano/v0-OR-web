@@ -111,7 +111,6 @@ export default function GalleryPage() {
     }
   }, []);
 
-  // --- 2. EFECTO INICIAL (CON CONTROLADOR DE ABORTO Y LIMPIEZA) ---
   // --- 2. EFECTO DE CARGA DE DATOS ---
   useEffect(() => {
     const controller = new AbortController();
@@ -119,17 +118,30 @@ export default function GalleryPage() {
     const init = async () => {
       console.log("🚀 [INIT] Iniciando carga de datos...");
       try {
-        // Cargamos filtros e imágenes en paralelo para mayor velocidad
         await Promise.all([
           supabase
             .from('filtros_padre')
-            .select(`id, nombre, filtros_hijo (id, nombre, orden)`)
+            .select(`
+              id, 
+              nombre, 
+              filtros_hijo (id, nombre, orden)
+            `)
             .abortSignal(controller.signal)
-            .order('orden', { ascending: true })
+            .order('orden', { ascending: true }) // Ordena los Padres
+            .order('orden', { foreignTable: 'filtros_hijo', ascending: true }) // <--- ESTO ORDENA LOS HIJOS
             .then(({ data: fData }) => {
               if (fData) {
                 const lista = fData.filter(f => f.nombre.toUpperCase() !== "TODOS");
                 setFiltros(lista);
+
+                // IMPORTANTE: Restauramos la selección por defecto para el modal de subida
+                if (lista.length > 0) {
+                  setUploadData(p => ({ 
+                    ...p, 
+                    padreId: lista[0].id, 
+                    hijoId: lista[0].filtros_hijo?.[0]?.id || "" 
+                  }));
+                }
               }
             }),
           fetchImages(undefined, undefined, controller.signal)
