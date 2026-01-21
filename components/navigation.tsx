@@ -65,7 +65,7 @@ export function Navigation() {
 
   const meta = user?.user_metadata
   const avatarUrl = meta?.avatar_url || meta?.picture || "/placeholder.svg"
-  const displayName = meta?.global_name || meta?.display_name || "Usuario"
+  const displayName = meta?.global_name || meta?.custom_claims?.global_name || meta?.display_name || "Usuario"
 
   return (
     <nav
