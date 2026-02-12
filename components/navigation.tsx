@@ -15,7 +15,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LogOut, User, Menu, X, Factory, Target } from "lucide-react"
 import { supabase } from "@/lib/supabase"
-import { useDivision } from "@/context/DivisionContext" // Importación necesaria
+import { useDivision } from "@/context/DivisionContext"
 
 export function Navigation() {
   const [scrolled, setScrolled] = useState(false)
@@ -24,7 +24,6 @@ export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   
-  // Conexión al contexto global
   const { isIndustrial, setDivision } = useDivision()
 
   const isLandingPage = pathname === "/"
@@ -109,23 +108,33 @@ export function Navigation() {
             <Link href="/public-comms" className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">PUBLIC COMMS</Link>
           </div>
 
-          <div className="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-sm">
+          {/* CONTENEDOR CON EL FONDO QUE TE GUSTÓ */}
+          <div 
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 backdrop-blur-sm transition-all duration-500 ${
+              isIndustrial ? "bg-cyan-950/40 border-cyan-500/30" : "bg-red-950/40 border-red-500/30"
+            }`}
+          >
             <div className="flex items-center gap-1.5">
               {isIndustrial ? (
                 <Factory className="w-3.5 h-3.5 text-primary animate-pulse" />
               ) : (
                 <Target className="w-3.5 h-3.5 text-primary" />
               )}
-              {/* CAMBIO AQUÍ: hidden en móvil, block en MD (PC) */}
               <Label htmlFor="division-mode" className="hidden md:block text-[10px] md:text-xs font-bold uppercase tracking-tighter cursor-pointer select-none">
                 {isIndustrial ? 'Industrial' : 'PVP'}
               </Label>
             </div>
+            
+            {/* SWITCH CON FONDO DINÁMICO */}
             <Switch 
               id="division-mode"
               checked={isIndustrial}
               onCheckedChange={(checked) => setDivision(checked ? 'INDUSTRIAL' : 'PVP')}
-              className="data-[state=checked]:bg-primary"
+              className={`
+                data-[state=checked]:bg-primary 
+                data-[state=unchecked]:bg-red-600
+                transition-colors
+              `}
             />
           </div>
 
