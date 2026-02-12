@@ -116,7 +116,8 @@ export function Navigation() {
               ) : (
                 <Target className="w-3.5 h-3.5 text-primary" />
               )}
-              <Label htmlFor="division-mode" className="text-[10px] md:text-xs font-bold uppercase tracking-tighter cursor-pointer select-none">
+              {/* CAMBIO AQUÍ: hidden en móvil, block en MD (PC) */}
+              <Label htmlFor="division-mode" className="hidden md:block text-[10px] md:text-xs font-bold uppercase tracking-tighter cursor-pointer select-none">
                 {isIndustrial ? 'Industrial' : 'PVP'}
               </Label>
             </div>
