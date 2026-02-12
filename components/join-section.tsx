@@ -1,36 +1,27 @@
 "use client"
 
-import type React from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { CheckCircle2, MessageSquare } from "lucide-react"
-import { useState } from "react"
+import { useDivision } from "@/context/DivisionContext"
 import Image from "next/image"
 
 export function JoinSection() {
-  const [submitted, setSubmitted] = useState(false)
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 3000)
-  }
+  const { isIndustrial } = useDivision()
 
   return (
     <section id="join" className="relative py-24 px-4 bg-black/60 backdrop-blur-sm">
       <div className="container mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-6xl font-bold mb-6">
-            {"ÚNETE A "}
-            <span className="text-primary">OUTRAIDERS</span>
+          <h2 className="text-4xl md:text-6xl font-bold mb-6 uppercase">
+            {isIndustrial ? "ÚNETE A LA FLOTA " : "ÚNETE A "}
+            <span className="text-primary transition-colors duration-500">OUTRAIDERS</span>
           </h2>
-          <div className="w-20 h-1 bg-primary mx-auto mb-8" />
+          <div className="w-20 h-1 bg-primary mx-auto mb-8 transition-colors duration-500" />
           <p className="text-lg text-foreground/70 max-w-2xl mx-auto text-pretty">
-            {
-              "¿Listo para formar parte de la élite? Completa el formulario y un oficial de reclutamiento se pondrá en contacto contigo."
-            }
+            {isIndustrial 
+              ? "¿Quieres dominar el mercado y las extracciones masivas? Buscamos operadores industriales dedicados."
+              : "¿Listo para formar parte de la élite? Entra en nuestro Discord y conócenos."}
           </p>
         </div>
 
@@ -43,13 +34,13 @@ export function JoinSection() {
                 <MessageSquare className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-lg font-bold mb-2 tracking-wide">SERVIDOR DISCORD</h3>
+                <h3 className="text-lg font-bold mb-2 tracking-wide uppercase">SERVIDOR DISCORD</h3>
                 <p className="text-foreground/70 text-sm leading-relaxed mb-3">
                   Únete a nuestra activa comunidad en Discord para coordinar misiones y conocer a otros miembros.
                 </p>
                 <Button
                   variant="outline"
-                  className="border-primary text-primary hover:bg-primary/10 bg-transparent"
+                  className="border-primary text-primary hover:bg-primary/10 bg-transparent transition-colors duration-500"
                   size="sm"
                   asChild
                 >
@@ -70,8 +61,8 @@ export function JoinSection() {
 
           {/* CARD 2: REQUISITOS */}
           <Card className="bg-primary/10 backdrop-blur-sm border-primary/30 p-6">
-            <h3 className="text-lg font-bold mb-0 tracking-wide text-primary">REQUISITOS</h3>
-            <ul className="-mt-1 space-y-2 text-sm text-foreground/80">
+            <h3 className="text-lg font-bold mb-4 tracking-wide text-primary transition-colors duration-500 uppercase">REQUISITOS</h3>
+            <ul className="space-y-3 text-sm text-foreground/80">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                 <span>Ser mayor de 18 años</span>
@@ -95,9 +86,7 @@ export function JoinSection() {
 
         <div className="mt-16 text-center">
           <p className="text-foreground/60 text-sm">
-            {
-              "Al enviar tu solicitud, aceptas nuestros términos y condiciones. Te responderemos en un plazo de 24-48 horas."
-            }
+            Al unirte, aceptas nuestras normas de convivencia. Te esperamos en el verso.
           </p>
         </div>
       </div>

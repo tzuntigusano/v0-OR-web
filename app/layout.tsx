@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Orbitron, Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { DivisionProvider } from "@/context/DivisionContext" // Importamos el cerebro del Switch
 import "./globals.css"
 
 const orbitron = Orbitron({
@@ -53,8 +54,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${orbitron.variable} ${inter.variable} font-sans antialiased`}>
-        {children}
-        <Analytics />
+        {/* Envolvemos con el Provider para que el Switch funcione en toda la web */}
+        <DivisionProvider>
+          {children}
+          <Analytics />
+        </DivisionProvider>
       </body>
     </html>
   )

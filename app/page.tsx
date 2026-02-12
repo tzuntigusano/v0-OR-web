@@ -4,6 +4,7 @@ import { JoinSection } from "@/components/join-section"
 import { VideoBackground } from "@/components/video-background"
 import { Navigation } from "@/components/navigation"
 import { MediaSection } from "@/components/media-section"
+import { FloatingDivisionTool } from "@/components/floating-division-tool"
 
 export default function Page() {
   return (
@@ -14,6 +15,7 @@ export default function Page() {
       <AboutSection />
       <MediaSection />
       <JoinSection />
+      <FloatingDivisionTool />
     </main>
   )
 }

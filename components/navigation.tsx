@@ -6,15 +6,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LogOut, User, Menu, X } from "lucide-react"
+import { LogOut, User, Menu, X, Factory, Target } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { useDivision } from "@/context/DivisionContext" // Importación necesaria
 
 export function Navigation() {
   const [scrolled, setScrolled] = useState(false)
@@ -22,6 +23,9 @@ export function Navigation() {
   const [loading, setLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
+  
+  // Conexión al contexto global
+  const { isIndustrial, setDivision } = useDivision()
 
   const isLandingPage = pathname === "/"
 
@@ -74,7 +78,6 @@ export function Navigation() {
       }`}
     >
       <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        {/* LOGO E ICONO */}
         <Link href="/" className="flex items-center gap-3 shrink-0">
           <Image
             src="/images/outraiders-logoanagrama-w.png"
@@ -94,9 +97,7 @@ export function Navigation() {
           />
         </Link>
 
-        {/* CONTENEDOR DERECHO: SECCIONES + BOTONES */}
         <div className="flex items-center gap-4 md:gap-8 ml-auto">
-          {/* SECCIONES PC */}
           <div className="hidden md:flex items-center gap-8">
             {isLandingPage && (
               <>
@@ -108,11 +109,29 @@ export function Navigation() {
             <Link href="/public-comms" className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">PUBLIC COMMS</Link>
           </div>
 
-          {/* BOTONES ACCIÓN */}
+          <div className="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-sm">
+            <div className="flex items-center gap-1.5">
+              {isIndustrial ? (
+                <Factory className="w-3.5 h-3.5 text-primary animate-pulse" />
+              ) : (
+                <Target className="w-3.5 h-3.5 text-primary" />
+              )}
+              <Label htmlFor="division-mode" className="text-[10px] md:text-xs font-bold uppercase tracking-tighter cursor-pointer select-none">
+                {isIndustrial ? 'Industrial' : 'PVP'}
+              </Label>
+            </div>
+            <Switch 
+              id="division-mode"
+              checked={isIndustrial}
+              onCheckedChange={(checked) => setDivision(checked ? 'INDUSTRIAL' : 'PVP')}
+              className="data-[state=checked]:bg-primary"
+            />
+          </div>
+
           <div className="flex items-center gap-2">
             <Button
               asChild
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold tracking-wide h-8 px-2 md:h-10 md:px-4 text-[10px] md:text-sm shrink-0"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold tracking-wide h-8 px-2 md:h-10 md:px-4 text-[10px] md:text-sm shrink-0 transition-colors duration-500"
             >
               <a href="https://google.es" target="_blank" rel="noopener noreferrer" className="flex items-center">
                 ÚNETE
@@ -126,13 +145,12 @@ export function Navigation() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button className="flex items-center hover:opacity-80 transition-opacity focus:outline-none shrink-0">
-                        {/* AVATAR CORREGIDO */}
                         <div className="relative w-8 h-8 md:w-9 md:h-9">
                           <Image
                             src={avatarUrl}
                             alt={displayName}
                             fill
-                            className="rounded-full border-2 border-primary object-cover"
+                            className="rounded-full border-2 border-primary object-cover transition-colors duration-500"
                           />
                         </div>
                         <div className="hidden md:flex flex-col items-start ml-2 leading-tight text-left">
@@ -173,7 +191,6 @@ export function Navigation() {
         </div>
       </div>
 
-      {/* MOBILE DROPDOWN */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-black/95 border-b-2 border-primary/20 flex flex-col p-6 gap-6 animate-in slide-in-from-top duration-300">
           {isLandingPage && (
