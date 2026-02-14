@@ -48,13 +48,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   "Infiltrator": <Crosshair className="w-3.5 h-3.5 text-white" />,
 }
 
-// NUEVOS TÍTULOS ACTUALIZADOS
-const TITULOS_DISPONIBLES = [
-  "Ashborn",
-  "Endgamer",
-  "Outraider",
-  "Mono"
-];
+const TITULOS_DISPONIBLES = ["Ashborn", "Endgamer", "Outraider", "Mono"];
 
 const CONDECORACIONES_MOCK: Condecoracion[] = [
   { id: "1", nombre: "Cruz de Valor", fecha: "2026-01-10", imageUrl: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=500&auto=format&fit=crop" },
@@ -153,9 +147,9 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
             </button>
             <div className="relative aspect-square w-full">
               <Image src={selectedMedal.imageUrl} alt={selectedMedal.nombre} fill className="object-cover" />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-zinc-950 p-8 text-center">
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-zinc-950 p-8 text-center text-white">
                 <h3 className="text-3xl font-black uppercase tracking-tighter">{selectedMedal.nombre}</h3>
-                <p className="text-primary font-bold text-sm tracking-widest mt-1">OTORGADA EL {selectedMedal.fecha}</p>
+                <p className="text-primary font-bold text-sm tracking-widest mt-1 uppercase">Otorgada el {selectedMedal.fecha}</p>
               </div>
             </div>
           </div>
@@ -177,7 +171,7 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
             </div>
           </div>
 
-          <div className="pt-4 border-t border-zinc-800/50">
+          <div className="pt-4 border-t border-zinc-800/50 text-white">
             <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Título de Perfil</label>
             {isOwner ? (
               <select 
@@ -195,27 +189,11 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
           </div>
         </div>
 
-        {/* DKPs por Actividad */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
-          <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
-            <Zap className="w-3.5 h-3.5 text-white" />
-            <span className="text-[9px] font-bold uppercase tracking-widest">DKPs por Actividad</span>
-          </div>
-          <div className="divide-y divide-zinc-900">
-            {["Flotas", "Entrenamientos", "Operaciones", "Eventos", "Endgame"].map((label) => (
-              <div key={label} className="flex justify-between items-center px-4 py-2.5 hover:bg-white/[0.02]">
-                <span className="text-xs text-zinc-400">{label}</span>
-                <span className="text-xs font-mono font-bold text-white">450</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Especialidades */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
             <Star className="w-3.5 h-3.5 text-white" />
-            <span className="text-[9px] font-bold uppercase tracking-widest">Especialidades</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-white">Especialidades</span>
           </div>
           <table className="w-full text-xs">
             <tbody className="divide-y divide-zinc-900">
@@ -250,25 +228,31 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
           </table>
         </div>
 
-        {/* Condecoraciones */}
+        {/* Condecoraciones (Sin imágenes en tabla) */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
             <Medal className="w-3.5 h-3.5 text-white" />
-            <span className="text-[9px] font-bold uppercase tracking-widest">Condecoraciones</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-white">Condecoraciones</span>
           </div>
           <div className="divide-y divide-zinc-900">
             {CONDECORACIONES_MOCK.map((medal) => (
-              <button key={medal.id} onClick={() => setSelectedMedal(medal)} className="w-full flex items-center justify-between p-4 hover:bg-primary/5 transition-all group border-none text-left">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden border border-zinc-800 group-hover:border-primary/50 transition-colors relative">
-                    <Image src={medal.imageUrl} alt={medal.nombre} fill className="object-cover" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-zinc-200 uppercase group-hover:text-primary transition-colors">{medal.nombre}</p>
-                    <p className="text-[10px] text-zinc-500 font-mono">{medal.fecha}</p>
-                  </div>
+              <button 
+                key={medal.id} 
+                onClick={() => setSelectedMedal(medal)} 
+                className="w-full flex items-center justify-between p-4 hover:bg-primary/5 transition-all group border-none text-left"
+              >
+                <div>
+                  <p className="text-xs font-bold text-zinc-200 uppercase group-hover:text-primary transition-colors tracking-tighter">
+                    {medal.nombre}
+                  </p>
+                  <p className="text-[10px] text-zinc-600 font-mono uppercase mt-0.5">
+                    Otorgada: {medal.fecha}
+                  </p>
                 </div>
-                <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-primary transition-all group-hover:translate-x-1" />
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] font-bold text-zinc-700 uppercase opacity-0 group-hover:opacity-100 transition-opacity tracking-widest">Ver Medalla</span>
+                  <ChevronRight className="w-4 h-4 text-zinc-800 group-hover:text-primary transition-all group-hover:translate-x-1" />
+                </div>
               </button>
             ))}
           </div>
@@ -299,7 +283,7 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
                 <th className="px-4 py-3 border-b border-zinc-800 text-right">DKPs</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-900">
+            <tbody className="divide-y divide-zinc-900 text-white">
               {datosVisibles.map((row, i) => {
                 const currentMonth = getMonthLabel(row.fecha);
                 const prevMonth = i > 0 ? getMonthLabel(datosVisibles[i-1].fecha) : null;
