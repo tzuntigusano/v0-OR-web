@@ -141,7 +141,7 @@ export function Navigation() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* BOTÓN ÚNETE (Original) */}
+            {/* BOTÓN ÚNETE */}
             <Button
               asChild
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold tracking-wide h-8 px-2 md:h-10 md:px-4 text-[10px] md:text-sm shrink-0 transition-colors duration-500"
@@ -173,6 +173,7 @@ export function Navigation() {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-white">
+                      {/* ACCESO AL PERFIL RESTAURADO */}
                       <DropdownMenuItem onClick={goToProfile} className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800 focus:text-white">
                         <User className="mr-2 h-4 w-4 text-primary" />
                         <span>Perfil</span>
@@ -193,7 +194,7 @@ export function Navigation() {
                   </Button>
                 )}
                 
-                {/* BOTÓN HAMBURGUESA (MÓVIL - A LA DERECHA DE TODO) */}
+                {/* BOTÓN HAMBURGUESA MÓVIL */}
                 <button
                   className="md:hidden p-2 text-white hover:text-primary transition-colors"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
