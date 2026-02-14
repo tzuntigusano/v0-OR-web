@@ -1,31 +1,60 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Navigation } from "@/components/navigation"
+import { ProfileViewer } from "@/components/profile-viewer" // <-- Importamos el nuevo módulo
+import { supabase } from "@/lib/supabase"
 
 export default function ProfilePage() {
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (data?.session) {
+        setUser(data.session.user)
+      }
+      setLoading(false)
+    }
+    getUser()
+
+    // Escuchar cambios de autenticación para actualizar el perfil en tiempo real
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => {
+      authListener.subscription.unsubscribe()
+    }
+  }, [])
+
   return (
     <main className="min-h-screen bg-black text-white">
-      {/* Esto hace que aparezca la cabecera */}
+      {/* Cabecera siempre visible */}
       <Navigation />
 
-      {/* El contenido de la página con un margen superior para que no lo tape la cabecera */}
-      <div className="container mx-auto pt-32 px-4">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-bold text-primary uppercase tracking-tighter mb-2">
-            Mi Perfil
-          </h1>
-          <p className="text-zinc-500 font-medium">
-            Bienvenido a tu panel de usuario de Outraiders.
-          </p>
-          
-          <div className="mt-12 p-8 border border-zinc-800 bg-zinc-900/30 rounded-2xl backdrop-blur-sm">
-            <h2 className="text-xl font-semibold mb-4 text-white">Próximamente</h2>
-            <p className="text-zinc-400">
-              Aquí aparecerán tus estadísticas, logros y configuración de cuenta.
+      <div className="container mx-auto pt-32 pb-20 px-4">
+        {loading ? (
+          /* Estado de carga profesional */
+          <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-4">
+            <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-zinc-500 uppercase text-xs tracking-[0.3em] animate-pulse">
+              Sincronizando datos de Raider...
             </p>
-            <div className="mt-6 h-1 w-24 bg-primary rounded-full animate-pulse" />
           </div>
-        </div>
+        ) : user ? (
+          /* SI HAY USUARIO: Mostramos el módulo dinámico */
+          <div className="max-w-7xl mx-auto">
+             <ProfileViewer user={user} />
+          </div>
+        ) : (
+          /* SI NO HAY USUARIO: Mensaje de error o redirección */
+          <div className="text-center p-20 border border-zinc-800 rounded-3xl bg-zinc-900/20">
+            <h2 className="text-2xl font-bold text-red-500 uppercase mb-4">Acceso Denegado</h2>
+            <p className="text-zinc-400">Debes estar logueado para ver tu perfil de Outraiders.</p>
+          </div>
+        )}
       </div>
     </main>
   )
