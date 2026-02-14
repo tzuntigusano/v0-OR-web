@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation" // <-- AÑADIDO useRouter
 import { LogOut, User, Menu, X, Factory, Target } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useDivision } from "@/context/DivisionContext"
@@ -23,6 +23,7 @@ export function Navigation() {
   const [loading, setLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter() // <-- INICIALIZADO
   
   const { isIndustrial, setDivision } = useDivision()
 
@@ -56,6 +57,12 @@ export function Navigation() {
 
   const logout = async () => {
     await supabase.auth.signOut()
+  }
+
+  // FUNCIÓN PARA NAVEGAR AL PERFIL
+  const goToProfile = () => {
+    setMobileMenuOpen(false)
+    router.push("/profile")
   }
 
   const scrollToSection = (id: string) => {
@@ -128,11 +135,7 @@ export function Navigation() {
               id="division-mode"
               checked={isIndustrial}
               onCheckedChange={(checked) => setDivision(checked ? 'INDUSTRIAL' : 'PVP')}
-              className={`
-                data-[state=checked]:bg-primary 
-                data-[state=unchecked]:bg-red-600
-                transition-colors
-              `}
+              className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-red-600 transition-colors"
             />
           </div>
 
@@ -168,14 +171,14 @@ export function Navigation() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-white">
                       
-                      {/* --- AQUÍ ESTÁ EL CAMBIO --- */}
-                      <DropdownMenuItem asChild className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800 focus:text-white">
-                        <Link href="/profile" className="flex items-center w-full">
-                          <User className="mr-2 h-4 w-4 text-primary" />
-                          <span>Perfil</span>
-                        </Link>
+                      {/* CAMBIO AQUÍ: Usamos onClick para navegar por código */}
+                      <DropdownMenuItem 
+                        onClick={goToProfile} 
+                        className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800 focus:text-white"
+                      >
+                        <User className="mr-2 h-4 w-4 text-primary" />
+                        <span>Perfil</span>
                       </DropdownMenuItem>
-                      {/* --------------------------- */}
 
                       <DropdownMenuItem onClick={logout} className="text-red-500 hover:bg-red-500/10 cursor-pointer focus:bg-red-500/10 focus:text-red-500">
                         <LogOut className="mr-2 h-4 w-4" />
@@ -194,29 +197,9 @@ export function Navigation() {
                 )}
               </div>
             )}
-
-            <button 
-              className="md:hidden text-primary p-1 shrink-0" 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
           </div>
         </div>
       </div>
-
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-black/95 border-b-2 border-primary/20 flex flex-col p-6 gap-6 animate-in slide-in-from-top duration-300">
-          {isLandingPage && (
-            <>
-              <button onClick={() => scrollToSection("about")} className="text-left text-sm font-medium tracking-wide uppercase text-white hover:text-primary">QUIÉNES SOMOS</button>
-              <button onClick={() => scrollToSection("media")} className="text-left text-sm font-medium tracking-wide uppercase text-white hover:text-primary">CONTENIDO</button>
-            </>
-          )}
-          <Link href="/gallery" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium tracking-wide uppercase text-white hover:text-primary">GALERÍA</Link>
-          <Link href="/public-comms" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium tracking-wide uppercase text-white hover:text-primary">PUBLIC COMMS</Link>
-        </div>
-      )}
     </nav>
   )
 }
