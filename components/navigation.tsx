@@ -108,7 +108,6 @@ export function Navigation() {
             <Link href="/public-comms" className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">PUBLIC COMMS</Link>
           </div>
 
-          {/* CONTENEDOR CON EL FONDO QUE TE GUSTÓ */}
           <div 
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 backdrop-blur-sm transition-all duration-500 ${
               isIndustrial ? "bg-cyan-950/40 border-cyan-500/30" : "bg-red-950/40 border-red-500/30"
@@ -125,7 +124,6 @@ export function Navigation() {
               </Label>
             </div>
             
-            {/* SWITCH CON FONDO DINÁMICO */}
             <Switch 
               id="division-mode"
               checked={isIndustrial}
@@ -169,10 +167,16 @@ export function Navigation() {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-white">
-                      <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800 focus:text-white">
-                        <User className="mr-2 h-4 w-4 text-primary" />
-                        <span>Perfil</span>
+                      
+                      {/* --- AQUÍ ESTÁ EL CAMBIO --- */}
+                      <DropdownMenuItem asChild className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800 focus:text-white">
+                        <Link href="/profile" className="flex items-center w-full">
+                          <User className="mr-2 h-4 w-4 text-primary" />
+                          <span>Perfil</span>
+                        </Link>
                       </DropdownMenuItem>
+                      {/* --------------------------- */}
+
                       <DropdownMenuItem onClick={logout} className="text-red-500 hover:bg-red-500/10 cursor-pointer focus:bg-red-500/10 focus:text-red-500">
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Cerrar Sesión</span>
