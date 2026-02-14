@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation" // <-- AÑADIDO useRouter
+import { usePathname, useRouter } from "next/navigation"
 import { LogOut, User, Menu, X, Factory, Target } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useDivision } from "@/context/DivisionContext"
@@ -23,7 +23,7 @@ export function Navigation() {
   const [loading, setLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
-  const router = useRouter() // <-- INICIALIZADO
+  const router = useRouter()
   
   const { isIndustrial, setDivision } = useDivision()
 
@@ -57,9 +57,9 @@ export function Navigation() {
 
   const logout = async () => {
     await supabase.auth.signOut()
+    setMobileMenuOpen(false)
   }
 
-  // FUNCIÓN PARA NAVEGAR AL PERFIL
   const goToProfile = () => {
     setMobileMenuOpen(false)
     router.push("/profile")
@@ -80,11 +80,12 @@ export function Navigation() {
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-[100] w-full transition-all duration-300 ${
-        scrolled || mobileMenuOpen ? "bg-black/90 backdrop-blur-md border-b-2 border-primary/20" : "bg-transparent"
+        scrolled || mobileMenuOpen ? "bg-black/95 backdrop-blur-md border-b-2 border-primary/20" : "bg-transparent"
       }`}
     >
       <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-3 shrink-0">
+        {/* LOGO */}
+        <Link href="/" className="flex items-center gap-3 shrink-0" onClick={() => setMobileMenuOpen(false)}>
           <Image
             src="/images/outraiders-logoanagrama-w.png"
             alt="Outraiders Icon"
@@ -103,103 +104,118 @@ export function Navigation() {
           />
         </Link>
 
-        <div className="flex items-center gap-4 md:gap-8 ml-auto">
-          <div className="hidden md:flex items-center gap-8">
-            {isLandingPage && (
-              <>
-                <button onClick={() => scrollToSection("about")} className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">QUIÉNES SOMOS</button>
-                <button onClick={() => scrollToSection("media")} className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">CONTENIDO</button>
-              </>
-            )}
-            <Link href="/gallery" className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide uppercase">GALERÍA</Link>
-            <Link href="/public-comms" className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">PUBLIC COMMS</Link>
-          </div>
+        {/* DESKTOP NAV */}
+        <div className="hidden md:flex items-center gap-8 ml-auto mr-8">
+          {isLandingPage && (
+            <>
+              <button onClick={() => scrollToSection("about")} className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">QUIÉNES SOMOS</button>
+              <button onClick={() => scrollToSection("media")} className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">CONTENIDO</button>
+            </>
+          )}
+          <Link href="/gallery" className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide uppercase">GALERÍA</Link>
+          <Link href="/public-comms" className="text-foreground/80 hover:text-primary transition-colors text-sm font-medium tracking-wide whitespace-nowrap uppercase">PUBLIC COMMS</Link>
+        </div>
 
-          <div 
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 backdrop-blur-sm transition-all duration-500 ${
+        {/* ACCIONES DERECHA (Switch + Auth + Hamburguesa) */}
+        <div className="flex items-center gap-3 md:gap-4">
+          
+          {/* SWITCH DIVISION */}
+          <div className={`flex items-center gap-2 px-2 py-1 md:px-3 md:py-1.5 rounded-full border border-white/20 backdrop-blur-sm transition-all duration-500 ${
               isIndustrial ? "bg-cyan-950/40 border-cyan-500/30" : "bg-red-950/40 border-red-500/30"
             }`}
           >
             <div className="flex items-center gap-1.5">
-              {isIndustrial ? (
-                <Factory className="w-3.5 h-3.5 text-primary animate-pulse" />
-              ) : (
-                <Target className="w-3.5 h-3.5 text-primary" />
-              )}
-              <Label htmlFor="division-mode" className="hidden md:block text-[10px] md:text-xs font-bold uppercase tracking-tighter cursor-pointer select-none">
+              {isIndustrial ? <Factory className="w-3.5 h-3.5 text-primary animate-pulse" /> : <Target className="w-3.5 h-3.5 text-primary" />}
+              <Label htmlFor="division-mode" className="hidden lg:block text-[10px] md:text-xs font-bold uppercase tracking-tighter cursor-pointer select-none">
                 {isIndustrial ? 'Industrial' : 'PVP'}
               </Label>
             </div>
-            
             <Switch 
               id="division-mode"
               checked={isIndustrial}
               onCheckedChange={(checked) => setDivision(checked ? 'INDUSTRIAL' : 'PVP')}
-              className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-red-600 transition-colors"
+              className="scale-75 md:scale-100 data-[state=checked]:bg-primary data-[state=unchecked]:bg-red-600 transition-colors"
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              asChild
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold tracking-wide h-8 px-2 md:h-10 md:px-4 text-[10px] md:text-sm shrink-0 transition-colors duration-500"
-            >
-              <a href="https://google.es" target="_blank" rel="noopener noreferrer" className="flex items-center">
-                ÚNETE
-                <Image src="/discord-logo.png" alt="Discord" width={14} height={14} className="ml-1 md:ml-2" />
-              </a>
-            </Button>
+          {/* AUTH SECTION (DESKTOP) */}
+          {!loading && (
+            <div className="hidden md:flex items-center border-l border-white/10 pl-4">
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center hover:opacity-80 transition-opacity focus:outline-none shrink-0">
+                      <div className="relative w-8 h-8 md:w-9 md:h-9">
+                        <Image src={avatarUrl} alt={displayName} fill className="rounded-full border-2 border-primary object-cover" />
+                      </div>
+                      <span className="hidden lg:inline ml-2 text-sm font-bold text-white tracking-tight">{displayName}</span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-white">
+                    <DropdownMenuItem onClick={goToProfile} className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800 focus:text-white">
+                      <User className="mr-2 h-4 w-4 text-primary" />
+                      <span>Perfil</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={logout} className="text-red-500 hover:bg-red-500/10 cursor-pointer focus:bg-red-500/10 focus:text-red-500">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Cerrar Sesión</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button onClick={login} className="bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold h-9 px-4 text-xs flex items-center gap-2">
+                  LOGIN <Image src="/discord-logo.png" alt="Discord" width={14} height={14} />
+                </Button>
+              )}
+            </div>
+          )}
 
-            {!loading && (
-              <div className="md:border-l md:border-white/10 md:pl-4 flex items-center">
-                {user ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="flex items-center hover:opacity-80 transition-opacity focus:outline-none shrink-0">
-                        <div className="relative w-8 h-8 md:w-9 md:h-9">
-                          <Image
-                            src={avatarUrl}
-                            alt={displayName}
-                            fill
-                            className="rounded-full border-2 border-primary object-cover transition-colors duration-500"
-                          />
-                        </div>
-                        <div className="hidden md:flex flex-col items-start ml-2 leading-tight text-left">
-                          <span className="text-sm font-bold text-white tracking-tight">{displayName}</span>
-                        </div>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-white">
-                      
-                      {/* CAMBIO AQUÍ: Usamos onClick para navegar por código */}
-                      <DropdownMenuItem 
-                        onClick={goToProfile} 
-                        className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800 focus:text-white"
-                      >
-                        <User className="mr-2 h-4 w-4 text-primary" />
-                        <span>Perfil</span>
-                      </DropdownMenuItem>
+          {/* BOTÓN HAMBURGUESA (MÓVIL) */}
+          <button
+            className="md:hidden p-2 text-white hover:text-primary transition-colors"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
+          </button>
+        </div>
+      </div>
 
-                      <DropdownMenuItem onClick={logout} className="text-red-500 hover:bg-red-500/10 cursor-pointer focus:bg-red-500/10 focus:text-red-500">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Cerrar Sesión</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Button
-                    onClick={login}
-                    className="bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold h-8 px-2 md:h-10 md:px-6 text-[10px] md:text-sm shrink-0 flex items-center gap-2"
-                  >
-                    LOGIN
-                    <Image src="/discord-logo.png" alt="Discord" width={14} height={14} />
-                  </Button>
-                )}
+      {/* MENÚ MÓVIL DESPLEGABLE */}
+      {mobileMenuOpen && (
+        <div className="md:hidden absolute top-full left-0 w-full bg-black/95 backdrop-blur-xl border-b border-primary/20 animate-in slide-in-from-top-2 duration-300">
+          <div className="flex flex-col p-6 gap-6">
+            {isLandingPage && (
+              <>
+                <button onClick={() => scrollToSection("about")} className="text-left text-lg font-bold uppercase tracking-wider text-white hover:text-primary transition-colors">QUIÉNES SOMOS</button>
+                <button onClick={() => scrollToSection("media")} className="text-left text-lg font-bold uppercase tracking-wider text-white hover:text-primary transition-colors">CONTENIDO</button>
+              </>
+            )}
+            <Link href="/gallery" onClick={() => setMobileMenuOpen(false)} className="text-lg font-bold uppercase tracking-wider text-white hover:text-primary transition-colors">GALERÍA</Link>
+            <Link href="/public-comms" onClick={() => setMobileMenuOpen(false)} className="text-lg font-bold uppercase tracking-wider text-white hover:text-primary transition-colors">PUBLIC COMMS</Link>
+            
+            <hr className="border-white/10" />
+
+            {user ? (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <Image src={avatarUrl} alt={displayName} width={40} height={40} className="rounded-full border border-primary" />
+                  <span className="font-bold text-white">{displayName}</span>
+                </div>
+                <Button onClick={goToProfile} variant="outline" className="justify-start border-zinc-700 text-white">
+                  <User className="mr-2 h-4 w-4" /> Perfil
+                </Button>
+                <Button onClick={logout} variant="destructive" className="justify-start">
+                  <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
+                </Button>
               </div>
+            ) : (
+              <Button onClick={login} className="bg-[#5865F2] hover:bg-[#4752C4] w-full font-bold py-6 text-base gap-3">
+                LOGIN CON DISCORD <Image src="/discord-logo.png" alt="Discord" width={20} height={20} />
+              </Button>
             )}
           </div>
         </div>
-      </div>
+      )}
     </nav>
   )
 }
