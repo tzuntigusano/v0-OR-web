@@ -120,8 +120,10 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
     );
   };
 
-  const avatarUrl = user?.user_metadata?.avatar_url || "/placeholder.svg";
-  const displayName = user?.user_metadata?.global_name || "Usuario";
+  // --- LÓGICA DE DATOS PARAMETRIZADA (IGUAL QUE EN NAVIGATION.TSX) ---
+  const meta = user?.user_metadata;
+  const avatarUrl = meta?.avatar_url || meta?.picture || "/placeholder.svg";
+  const displayName = meta?.global_name || meta?.custom_claims?.global_name || meta?.display_name || "Usuario";
 
   const historialFiltrado = useMemo(() => {
     return HISTORIAL_DATA.filter(item => filtro === "General" || item.actividad === filtro);
@@ -165,8 +167,8 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
             <div className="relative w-16 h-16 md:w-20 md:h-20 shrink-0">
               <Image src={avatarUrl} alt={displayName} fill className="rounded-full border-2 border-primary object-cover shadow-lg shadow-primary/20" />
             </div>
-            <div>
-              <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter leading-none">{displayName}</h2>
+            <div className="min-w-0">
+              <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter leading-none truncate">{displayName}</h2>
               <p className="text-primary text-[10px] font-bold tracking-[0.3em] uppercase mt-2">Raider Elite</p>
             </div>
           </div>
@@ -189,7 +191,7 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
           </div>
         </div>
 
-        {/* Especialidades (Con Scroll Horizontal en móvil) */}
+        {/* Especialidades */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
             <Star className="w-3.5 h-3.5 text-white" />
@@ -257,7 +259,7 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
         </div>
       </div>
 
-      {/* COLUMNA DERECHA (Tabla Principal con Scroll) */}
+      {/* COLUMNA DERECHA */}
       <div className="lg:col-span-8 space-y-4">
         
         {/* Filtros */}
@@ -272,9 +274,9 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
           ))}
         </div>
 
-        {/* Tabla Historial con Scroll Horizontal Forzado en Móvil */}
+        {/* Tabla Historial */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-zinc-800">
             <table className="w-full text-left min-w-[600px]">
               <thead className="text-[9px] uppercase text-zinc-500 bg-zinc-900/50 font-bold italic">
                 <tr>
