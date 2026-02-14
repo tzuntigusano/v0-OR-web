@@ -3,10 +3,11 @@
 import React, { useState, useMemo } from "react"
 import Image from "next/image"
 import { 
-  Rocket, Shield, Target, Award, Zap, Star, Plus, ChevronUp, ChevronDown, Activity 
+  Rocket, Shield, Target, Award, Zap, Star, Plus, 
+  ChevronUp, ChevronDown, Activity, Sword, Heart, UserPlus, Crosshair 
 } from "lucide-react"
 
-// --- TIPOS (Para que VSC no de error con "any") ---
+// --- TIPOS ---
 interface SubSpecialty {
   nombre: string;
   tier: string;
@@ -28,11 +29,22 @@ const ACTIVIDAD_STYLES: Record<string, string> = {
   "Evento": "bg-amber-500/10 text-amber-400 border-amber-500/20",
 }
 
+// Iconos ahora siempre blancos
 const ICON_MAP: Record<string, React.ReactNode> = {
+  // Especialidades Principales (Padres)
   "Pilot": <Rocket className="w-3.5 h-3.5 text-white" />,
   "Capital Ship Pilot": <Shield className="w-3.5 h-3.5 text-white" />,
   "Soldier": <Target className="w-3.5 h-3.5 text-white" />,
   "Wing Commander": <Award className="w-3.5 h-3.5 text-white" />,
+  
+  // Subespecialidades Pilot
+  "Dogfighter": <Sword className="w-3.5 h-3.5 text-white" />,
+  "Flight Support": <Activity className="w-3.5 h-3.5 text-white" />,
+  "Multicrew Fighter": <UserPlus className="w-3.5 h-3.5 text-white" />,
+  
+  // Subespecialidades Soldier
+  "Medic": <Heart className="w-3.5 h-3.5 text-white" />,
+  "Infiltrator": <Crosshair className="w-3.5 h-3.5 text-white" />,
 }
 
 const getTierStyle = (tier: string) => {
@@ -45,7 +57,7 @@ const getTierStyle = (tier: string) => {
   }
 }
 
-// --- DATOS ---
+// --- DATOS MOCK ---
 const ESPECIALIDADES_DATA: Specialty[] = [
   { 
     nombre: "Pilot", tier: "T3", dkps: 1200,
@@ -66,16 +78,18 @@ const ESPECIALIDADES_DATA: Specialty[] = [
   { nombre: "Wing Commander", tier: "T0", dkps: 50, sub: [] },
 ]
 
-// Generador de historial para pruebas
 const generateMockHistory = () => {
   const actividades = ["Operación", "Flota", "Entrenamiento", "Evento"];
   const especialidades = ["Pilot", "Soldier", "Capital Ship Pilot", "Wing Commander"];
   const data = [];
   const now = new Date();
+  
   for (let i = 0; i < 50; i++) {
     const date = new Date();
+    // 80% de los datos son de este mes para ver el agrupado
     const daysOffset = i < 40 ? Math.floor(Math.random() * 14) : 30 + i;
     date.setDate(now.getDate() - daysOffset);
+    
     data.push({
       fecha: date,
       id: Math.floor(Math.random() * 100) + 1,
@@ -119,8 +133,11 @@ export function ProfileViewer({ user }: { user: any }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-20 text-white">
-      {/* IZQUIERDA */}
+      
+      {/* --- COLUMNA IZQUIERDA --- */}
       <div className="lg:col-span-4 space-y-6">
+        
+        {/* Header Usuario */}
         <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-xl flex items-center gap-4">
           <div className="relative w-16 h-16 shrink-0">
             <Image src={avatarUrl} alt={displayName} fill className="rounded-full border-2 border-primary object-cover" />
@@ -147,14 +164,14 @@ export function ProfileViewer({ user }: { user: any }) {
           </div>
         </div>
 
-        {/* Especialidades */}
+        {/* Especialidades (Acordeón) */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
             <Star className="w-3.5 h-3.5 text-white" />
             <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-300">Especialidades</span>
           </div>
           <table className="w-full text-xs">
-            <thead className="text-[8px] uppercase text-zinc-500 bg-zinc-900/20">
+            <thead className="text-[8px] uppercase text-zinc-500 bg-zinc-900/20 font-bold">
               <tr>
                 <th className="text-left p-3">Especialidad</th>
                 <th className="text-center p-3">Tier</th>
@@ -167,15 +184,16 @@ export function ProfileViewer({ user }: { user: any }) {
                 const hasSub = esp.sub.length > 0;
                 return (
                   <React.Fragment key={esp.nombre}>
+                    {/* Padre */}
                     <tr 
                       className="group cursor-pointer hover:bg-white/[0.02] transition-colors"
                       onClick={() => hasSub && toggleSpecialty(esp.nombre)}
                     >
-                      <td className="p-3 flex items-center gap-2">
+                      <td className="p-3 flex items-center gap-2 text-zinc-200">
                         <div className="bg-zinc-900 p-1 rounded-md border border-zinc-800">
                           {ICON_MAP[esp.nombre] || <Activity className="w-3 h-3 text-white" />}
                         </div>
-                        <span className="font-bold text-zinc-200">{esp.nombre}</span>
+                        <span className="font-bold">{esp.nombre}</span>
                         {hasSub && (isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-500" /> : <Plus className="w-3 h-3 text-primary" />)}
                       </td>
                       <td className="p-3 text-center">
@@ -183,13 +201,19 @@ export function ProfileViewer({ user }: { user: any }) {
                       </td>
                       <td className="p-3 text-right font-mono text-primary font-bold">{esp.dkps}</td>
                     </tr>
+                    {/* Hijos */}
                     {isExpanded && esp.sub.map((sub) => (
-                      <tr key={sub.nombre} className="bg-black/40 border-l-2 border-primary/30">
-                        <td className="p-2 pl-10 flex items-center gap-2 text-zinc-400 text-[11px]">{sub.nombre}</td>
-                        <td className="p-2 text-center">
-                          <span className={`text-[8px] px-1 py-0.2 rounded border opacity-70 ${getTierStyle(sub.tier)}`}>{sub.tier}</span>
+                      <tr key={sub.nombre} className="bg-black/40 border-l-2 border-primary/30 group/sub">
+                        <td className="p-2 pl-10 flex items-center gap-3 text-zinc-400 text-[11px]">
+                          <div className="bg-zinc-900/50 p-1 rounded border border-zinc-800 group-hover/sub:border-zinc-700 transition-colors">
+                            {ICON_MAP[sub.nombre] || <Activity className="w-3 h-3 text-white" />}
+                          </div>
+                          <span className="font-medium">{sub.nombre}</span>
                         </td>
-                        <td className="p-2 text-right font-mono text-zinc-400 text-[11px] pr-3">{sub.dkps}</td>
+                        <td className="p-2 text-center">
+                          <span className={`text-[8px] px-1.5 py-0.2 rounded border font-bold opacity-70 ${getTierStyle(sub.tier)}`}>{sub.tier}</span>
+                        </td>
+                        <td className="p-2 text-right font-mono text-zinc-500 text-[11px] pr-3 italic">{sub.dkps}</td>
                       </tr>
                     ))}
                   </React.Fragment>
@@ -200,8 +224,10 @@ export function ProfileViewer({ user }: { user: any }) {
         </div>
       </div>
 
-      {/* DERECHA */}
+      {/* --- COLUMNA DERECHA --- */}
       <div className="lg:col-span-8 space-y-4">
+        
+        {/* Filtros */}
         <div className="flex flex-wrap gap-2">
           {["General", "Flota", "Operación", "Entrenamiento", "Evento"].map((cat) => (
             <button key={cat} onClick={() => { setFiltro(cat); setItemsAMostrar(12); }}
@@ -213,15 +239,16 @@ export function ProfileViewer({ user }: { user: any }) {
           ))}
         </div>
 
+        {/* Tabla Principal */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <table className="w-full text-left">
-            <thead className="text-[9px] uppercase text-zinc-500 bg-zinc-900/50">
+            <thead className="text-[9px] uppercase text-zinc-500 bg-zinc-900/50 font-bold">
               <tr>
-                <th className="px-4 py-2 font-bold border-b border-zinc-800">Fecha</th>
-                <th className="px-4 py-2 font-bold border-b border-zinc-800">ID</th>
-                <th className="px-4 py-2 font-bold border-b border-zinc-800">Actividad</th>
-                <th className="px-4 py-2 font-bold border-b border-zinc-800">Especialidad</th>
-                <th className="px-4 py-2 font-bold border-b border-zinc-800 text-right">DKPs</th>
+                <th className="px-4 py-2 border-b border-zinc-800">Fecha</th>
+                <th className="px-4 py-2 border-b border-zinc-800">ID</th>
+                <th className="px-4 py-2 border-b border-zinc-800">Actividad</th>
+                <th className="px-4 py-2 border-b border-zinc-800">Especialidad</th>
+                <th className="px-4 py-2 border-b border-zinc-800 text-right">DKPs</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-900">
@@ -242,7 +269,7 @@ export function ProfileViewer({ user }: { user: any }) {
                       <td className="px-4 py-2">
                         <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${ACTIVIDAD_STYLES[row.actividad]}`}>{row.actividad}</span>
                       </td>
-                      <td className="px-4 py-2 text-zinc-400 text-xs flex items-center gap-2">
+                      <td className="px-4 py-2 text-zinc-400 text-xs flex items-center gap-2 text-zinc-300">
                         {ICON_MAP[row.especialidad] || <Activity className="w-3 h-3 text-white" />}
                         {row.especialidad}
                       </td>
@@ -253,6 +280,8 @@ export function ProfileViewer({ user }: { user: any }) {
               })}
             </tbody>
           </table>
+
+          {/* Botones de Control */}
           <div className="p-4 bg-zinc-900/30 flex justify-center items-center gap-4 border-t border-zinc-800">
             {historialFiltrado.length > itemsAMostrar && (
               <button onClick={() => setItemsAMostrar(p => p + 12)} className="px-6 py-2 bg-primary/5 border border-primary/20 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary hover:text-black transition-all">
@@ -260,7 +289,7 @@ export function ProfileViewer({ user }: { user: any }) {
               </button>
             )}
             {itemsAMostrar > 12 && (
-              <button onClick={() => { setItemsAMostrar(12); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="px-6 py-2 bg-zinc-800 border border-zinc-700 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 hover:text-white">
+              <button onClick={() => { setItemsAMostrar(12); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="px-6 py-2 bg-zinc-800 border border-zinc-700 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 hover:text-white transition-all">
                 <ChevronUp className="w-3 h-3 inline mr-2" /> Colapsar
               </button>
             )}
