@@ -3,39 +3,54 @@
 import { useState, useMemo } from "react"
 import Image from "next/image"
 import { 
-  Rocket, Shield, Target, Award, Zap, Calendar, Hash, Activity, Star, Plus
+  Rocket, Shield, Target, Award, Zap, Calendar, Hash, Activity, Star, Plus 
 } from "lucide-react"
 
-const ICON_MAP: Record<string, React.ReactNode> = {
-  "Pilot": <Rocket className="w-4 h-4 text-cyan-400" />,
-  "Capital Ship Pilot": <Shield className="w-4 h-4 text-purple-400" />,
-  "Soldier": <Target className="w-4 h-4 text-red-400" />,
-  "Wing Commander": <Award className="w-4 h-4 text-yellow-400" />,
+// --- CONFIGURACIÓN VISUAL ---
+const ACTIVIDAD_STYLES: Record<string, string> = {
+  "Operación": "bg-red-500/10 text-red-400 border-red-500/20",
+  "Flota": "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  "Entrenamiento": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  "Evento": "bg-amber-500/10 text-amber-400 border-amber-500/20",
 }
 
-// Lógica de colores para Tiers
+const ICON_MAP: Record<string, React.ReactNode> = {
+  "Pilot": <Rocket className="w-3.5 h-3.5 text-cyan-400" />,
+  "Capital Ship Pilot": <Shield className="w-3.5 h-3.5 text-purple-400" />,
+  "Soldier": <Target className="w-3.5 h-3.5 text-red-400" />,
+  "Wing Commander": <Award className="w-3.5 h-3.5 text-yellow-400" />,
+}
+
 const getTierStyle = (tier: string) => {
   switch(tier) {
-    case "T3": return "bg-orange-500/20 text-orange-500 border-orange-500/50"; // Máximo
+    case "T3": return "bg-orange-500/20 text-orange-500 border-orange-500/50";
     case "T2": return "bg-yellow-500/20 text-yellow-500 border-yellow-500/50";
     case "T1": return "bg-blue-500/20 text-blue-500 border-blue-500/50";
-    case "T0": return "bg-zinc-700/50 text-zinc-400 border-zinc-600"; // Mínimo
+    case "T0": return "bg-zinc-700/50 text-zinc-400 border-zinc-600";
     default: return "bg-zinc-800 text-zinc-400";
   }
 }
 
-// --- GENERACIÓN DE DATOS EXTENSOS PARA PRUEBAS ---
+// --- MOCK DATA GENERATOR (Varios meses) ---
 const generateMockHistory = () => {
   const actividades = ["Operación", "Flota", "Entrenamiento", "Evento"];
   const especialidades = ["Pilot", "Soldier", "Capital Ship Pilot", "Wing Commander"];
+  const data = [];
   
-  return Array.from({ length: 45 }, (_, i) => ({
-    fecha: new Date(2026, 1, 14 - i).toISOString().split('T')[0],
-    id: Math.floor(Math.random() * 100) + 1,
-    actividad: actividades[Math.floor(Math.random() * actividades.length)],
-    especialidad: especialidades[Math.floor(Math.random() * especialidades.length)],
-    dkps: Math.floor(Math.random() * 150) + 10,
-  }));
+  // Generamos datos para Febrero, Enero y Diciembre
+  for (let i = 0; i < 40; i++) {
+    const date = new Date(2026, 1, 14); // Empezamos hoy (Feb)
+    date.setDate(date.getDate() - (i * 3)); // Restamos de 3 en 3 días para saltar de mes
+    
+    data.push({
+      fecha: date,
+      id: Math.floor(Math.random() * 100) + 1,
+      actividad: actividades[Math.floor(Math.random() * actividades.length)],
+      especialidad: especialidades[Math.floor(Math.random() * especialidades.length)],
+      dkps: Math.floor(Math.random() * 150) + 10,
+    });
+  }
+  return data;
 }
 
 const MOCK_DATA = {
@@ -58,26 +73,30 @@ const MOCK_DATA = {
 
 export function ProfileViewer({ user }: { user: any }) {
   const [filtro, setFiltro] = useState("General")
-  const [itemsAMostrar, setItemsAMostrar] = useState(10) // Paginación inicial
+  const [itemsAMostrar, setItemsAMostrar] = useState(12)
   
-  const meta = user?.user_metadata
-  const avatarUrl = meta?.avatar_url || "/placeholder.svg"
-  const displayName = meta?.global_name || meta?.display_name || "Usuario"
+  const avatarUrl = user?.user_metadata?.avatar_url || "/placeholder.svg"
+  const displayName = user?.user_metadata?.global_name || "Usuario"
 
-  const categoriasFiltro = ["General", "Flota", "Operación", "Entrenamiento", "Evento"]
-
-  // Filtrado y ordenación
   const historialFiltrado = useMemo(() => {
-    return MOCK_DATA.historial
-      .filter(item => filtro === "General" || item.actividad === filtro)
-  }, [filtro])
+    return MOCK_DATA.historial.filter(item => filtro === "General" || item.actividad === filtro);
+  }, [filtro]);
 
-  const datosVisibles = historialFiltrado.slice(0, itemsAMostrar)
+  const datosVisibles = historialFiltrado.slice(0, itemsAMostrar);
+
+  // Helper para formatear el mes
+  const getMonthLabel = (date: Date) => {
+    const now = new Date();
+    if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) {
+      return "ESTE MES";
+    }
+    return date.toLocaleString('es-ES', { month: 'long' }).toUpperCase();
+  };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-20">
       
-      {/* COLUMNA IZQUIERDA */}
+      {/* --- COLUMNA IZQUIERDA --- */}
       <div className="lg:col-span-4 space-y-6">
         <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-xl flex items-center gap-4">
           <Image src={avatarUrl} alt={displayName} width={64} height={64} className="rounded-full border-2 border-primary" />
@@ -88,7 +107,7 @@ export function ProfileViewer({ user }: { user: any }) {
         </div>
 
         {/* DKPs por Actividad */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
             <Zap className="w-3.5 h-3.5 text-primary" />
             <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-300">DKPs por Actividad</span>
@@ -104,7 +123,7 @@ export function ProfileViewer({ user }: { user: any }) {
         </div>
 
         {/* Especialidades */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
             <Star className="w-3.5 h-3.5 text-yellow-500" />
             <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-300">Especialidades</span>
@@ -121,7 +140,9 @@ export function ProfileViewer({ user }: { user: any }) {
               {MOCK_DATA.especialidades.map((esp, i) => (
                 <tr key={i} className="hover:bg-white/[0.02]">
                   <td className="p-3 flex items-center gap-2">
-                    {ICON_MAP[esp.nombre] || <Activity className="w-3 h-3" />}
+                    <div className="bg-zinc-900 p-1 rounded-md border border-zinc-800">
+                      {ICON_MAP[esp.nombre] || <Activity className="w-3 h-3 text-zinc-500" />}
+                    </div>
                     <span className="font-medium text-zinc-200">{esp.nombre}</span>
                   </td>
                   <td className="p-3 text-center">
@@ -137,15 +158,15 @@ export function ProfileViewer({ user }: { user: any }) {
         </div>
       </div>
 
-      {/* COLUMNA DERECHA */}
+      {/* --- COLUMNA DERECHA --- */}
       <div className="lg:col-span-8 space-y-4">
         <div className="flex flex-wrap gap-2">
-          {categoriasFiltro.map((cat) => (
+          {["General", "Flota", "Operación", "Entrenamiento", "Evento"].map((cat) => (
             <button
               key={cat}
-              onClick={() => { setFiltro(cat); setItemsAMostrar(10); }}
+              onClick={() => { setFiltro(cat); setItemsAMostrar(12); }}
               className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all border ${
-                filtro === cat ? "bg-primary border-primary text-black" : "bg-zinc-900 border-zinc-800 text-zinc-500"
+                filtro === cat ? "bg-primary border-primary text-black shadow-lg shadow-primary/20" : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white"
               }`}
             >
               {cat === "General" ? "Actividad General" : cat + "s"}
@@ -153,7 +174,7 @@ export function ProfileViewer({ user }: { user: any }) {
           ))}
         </div>
 
-        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <table className="w-full text-left">
             <thead className="text-[9px] uppercase text-zinc-500 bg-zinc-900/50">
               <tr>
@@ -165,28 +186,49 @@ export function ProfileViewer({ user }: { user: any }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-900">
-              {datosVisibles.map((row, i) => (
-                <tr key={i} className="hover:bg-white/[0.01] transition-colors group">
-                  <td className="px-4 py-2 text-zinc-500 font-mono text-[10px]">{row.fecha}</td>
-                  <td className="px-4 py-2 text-zinc-300 font-bold text-xs">#{row.id}</td>
-                  <td className="px-4 py-2">
-                    <span className="text-[10px] text-white uppercase">{row.actividad}</span>
-                  </td>
-                  <td className="px-4 py-2 text-zinc-400 text-xs">{row.especialidad}</td>
-                  <td className="px-4 py-2 text-right">
-                    <span className="font-mono font-bold text-primary text-xs">+{row.dkps}</span>
-                  </td>
-                </tr>
-              ))}
+              {datosVisibles.map((row, i) => {
+                const currentMonth = getMonthLabel(row.fecha);
+                const prevMonth = i > 0 ? getMonthLabel(datosVisibles[i-1].fecha) : null;
+                const showMonthHeader = currentMonth !== prevMonth;
+
+                return (
+                  <React.Fragment key={i}>
+                    {showMonthHeader && (
+                      <tr className="bg-zinc-900/30">
+                        <td colSpan={5} className="px-4 py-1.5 text-[10px] font-black text-primary tracking-[0.3em] border-b border-zinc-800">
+                          {currentMonth}
+                        </td>
+                      </tr>
+                    )}
+                    <tr className="hover:bg-white/[0.01] transition-colors group">
+                      <td className="px-4 py-2 text-zinc-500 font-mono text-[10px]">
+                        {row.fecha.toLocaleDateString('es-ES')}
+                      </td>
+                      <td className="px-4 py-2 text-zinc-300 font-bold text-xs">#{row.id}</td>
+                      <td className="px-4 py-2">
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${ACTIVIDAD_STYLES[row.actividad]}`}>
+                          {row.actividad}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-zinc-400 text-xs flex items-center gap-2">
+                        {ICON_MAP[row.especialidad]}
+                        {row.especialidad}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <span className="font-mono font-bold text-primary text-xs">+{row.dkps}</span>
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
           
-          {/* BOTÓN CARGAR MÁS */}
           {historialFiltrado.length > itemsAMostrar && (
-            <div className="p-3 bg-zinc-900/30 flex justify-center border-t border-zinc-800">
+            <div className="p-4 bg-zinc-900/30 flex justify-center border-t border-zinc-800">
               <button 
                 onClick={() => setItemsAMostrar(prev => prev + 10)}
-                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-primary hover:text-white transition-colors"
+                className="flex items-center gap-2 px-6 py-2 bg-primary/5 border border-primary/20 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary hover:text-black transition-all"
               >
                 <Plus className="w-3 h-3" />
                 Cargar más actividad
@@ -198,3 +240,5 @@ export function ProfileViewer({ user }: { user: any }) {
     </div>
   )
 }
+
+import React from "react" // Necesario para React.Fragment
