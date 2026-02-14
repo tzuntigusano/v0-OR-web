@@ -3,8 +3,9 @@
 import { useState, useMemo } from "react"
 import Image from "next/image"
 import { 
-  Rocket, Shield, Target, Award, Zap, Calendar, Hash, Activity, Star, Plus 
+  Rocket, Shield, Target, Award, Zap, Calendar, Hash, Activity, Star, Plus, ChevronUp
 } from "lucide-react"
+import React from "react"
 
 // --- CONFIGURACIÓN VISUAL ---
 const ACTIVIDAD_STYLES: Record<string, string> = {
@@ -14,11 +15,12 @@ const ACTIVIDAD_STYLES: Record<string, string> = {
   "Evento": "bg-amber-500/10 text-amber-400 border-amber-500/20",
 }
 
+// Iconos ahora siempre blancos mediante className
 const ICON_MAP: Record<string, React.ReactNode> = {
-  "Pilot": <Rocket className="w-3.5 h-3.5 text-cyan-400" />,
-  "Capital Ship Pilot": <Shield className="w-3.5 h-3.5 text-purple-400" />,
-  "Soldier": <Target className="w-3.5 h-3.5 text-red-400" />,
-  "Wing Commander": <Award className="w-3.5 h-3.5 text-yellow-400" />,
+  "Pilot": <Rocket className="w-3.5 h-3.5 text-white" />,
+  "Capital Ship Pilot": <Shield className="w-3.5 h-3.5 text-white" />,
+  "Soldier": <Target className="w-3.5 h-3.5 text-white" />,
+  "Wing Commander": <Award className="w-3.5 h-3.5 text-white" />,
 }
 
 const getTierStyle = (tier: string) => {
@@ -31,16 +33,18 @@ const getTierStyle = (tier: string) => {
   }
 }
 
-// --- MOCK DATA GENERATOR (Varios meses) ---
+// --- MOCK DATA GENERATOR (Prioridad Mes Actual) ---
 const generateMockHistory = () => {
   const actividades = ["Operación", "Flota", "Entrenamiento", "Evento"];
   const especialidades = ["Pilot", "Soldier", "Capital Ship Pilot", "Wing Commander"];
   const data = [];
+  const now = new Date();
   
-  // Generamos datos para Febrero, Enero y Diciembre
-  for (let i = 0; i < 40; i++) {
-    const date = new Date(2026, 1, 14); // Empezamos hoy (Feb)
-    date.setDate(date.getDate() - (i * 3)); // Restamos de 3 en 3 días para saltar de mes
+  for (let i = 0; i < 50; i++) {
+    const date = new Date();
+    // 80% de los datos son de este mes, 20% de meses anteriores
+    const daysOffset = i < 40 ? Math.floor(Math.random() * 14) : 30 + i;
+    date.setDate(now.getDate() - daysOffset);
     
     data.push({
       fecha: date,
@@ -50,7 +54,7 @@ const generateMockHistory = () => {
       dkps: Math.floor(Math.random() * 150) + 10,
     });
   }
-  return data;
+  return data.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
 }
 
 const MOCK_DATA = {
@@ -84,7 +88,6 @@ export function ProfileViewer({ user }: { user: any }) {
 
   const datosVisibles = historialFiltrado.slice(0, itemsAMostrar);
 
-  // Helper para formatear el mes
   const getMonthLabel = (date: Date) => {
     const now = new Date();
     if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) {
@@ -101,7 +104,7 @@ export function ProfileViewer({ user }: { user: any }) {
         <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-xl flex items-center gap-4">
           <Image src={avatarUrl} alt={displayName} width={64} height={64} className="rounded-full border-2 border-primary" />
           <div>
-            <h2 className="text-xl font-bold text-white uppercase">{displayName}</h2>
+            <h2 className="text-xl font-bold text-white uppercase tracking-tighter">{displayName}</h2>
             <p className="text-primary text-[10px] font-bold tracking-widest uppercase">{MOCK_DATA.rango}</p>
           </div>
         </div>
@@ -109,7 +112,7 @@ export function ProfileViewer({ user }: { user: any }) {
         {/* DKPs por Actividad */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
-            <Zap className="w-3.5 h-3.5 text-primary" />
+            <Zap className="w-3.5 h-3.5 text-white" /> {/* Icono Blanco */}
             <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-300">DKPs por Actividad</span>
           </div>
           <div className="divide-y divide-zinc-900">
@@ -125,25 +128,25 @@ export function ProfileViewer({ user }: { user: any }) {
         {/* Especialidades */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
-            <Star className="w-3.5 h-3.5 text-yellow-500" />
+            <Star className="w-3.5 h-3.5 text-white" /> {/* Icono Blanco */}
             <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-300">Especialidades</span>
           </div>
           <table className="w-full text-xs">
             <thead className="text-[8px] uppercase text-zinc-500 bg-zinc-900/20">
               <tr>
-                <th className="text-left p-3 font-medium">Especialidad</th>
-                <th className="text-center p-3 font-medium">Tier</th>
-                <th className="text-right p-3 font-medium">DKPs</th>
+                <th className="text-left p-3 font-medium text-zinc-500">Especialidad</th>
+                <th className="text-center p-3 font-medium text-zinc-500">Tier</th>
+                <th className="text-right p-3 font-medium text-zinc-500">DKPs</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-900">
+            <tbody className="divide-y divide-zinc-900 text-zinc-300">
               {MOCK_DATA.especialidades.map((esp, i) => (
                 <tr key={i} className="hover:bg-white/[0.02]">
                   <td className="p-3 flex items-center gap-2">
                     <div className="bg-zinc-900 p-1 rounded-md border border-zinc-800">
-                      {ICON_MAP[esp.nombre] || <Activity className="w-3 h-3 text-zinc-500" />}
+                      {ICON_MAP[esp.nombre] || <Activity className="w-3 h-3 text-white" />}
                     </div>
-                    <span className="font-medium text-zinc-200">{esp.nombre}</span>
+                    <span className="font-medium">{esp.nombre}</span>
                   </td>
                   <td className="p-3 text-center">
                     <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ${getTierStyle(esp.tier)}`}>
@@ -166,7 +169,7 @@ export function ProfileViewer({ user }: { user: any }) {
               key={cat}
               onClick={() => { setFiltro(cat); setItemsAMostrar(12); }}
               className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all border ${
-                filtro === cat ? "bg-primary border-primary text-black shadow-lg shadow-primary/20" : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white"
+                filtro === cat ? "bg-primary border-primary text-black" : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white"
               }`}
             >
               {cat === "General" ? "Actividad General" : cat + "s"}
@@ -211,7 +214,7 @@ export function ProfileViewer({ user }: { user: any }) {
                         </span>
                       </td>
                       <td className="px-4 py-2 text-zinc-400 text-xs flex items-center gap-2">
-                        {ICON_MAP[row.especialidad]}
+                        {ICON_MAP[row.especialidad]} {/* Icono Blanco */}
                         {row.especialidad}
                       </td>
                       <td className="px-4 py-2 text-right">
@@ -224,21 +227,34 @@ export function ProfileViewer({ user }: { user: any }) {
             </tbody>
           </table>
           
-          {historialFiltrado.length > itemsAMostrar && (
-            <div className="p-4 bg-zinc-900/30 flex justify-center border-t border-zinc-800">
+          <div className="p-4 bg-zinc-900/30 flex justify-center items-center gap-4 border-t border-zinc-800">
+            {/* BOTÓN CARGAR MÁS */}
+            {historialFiltrado.length > itemsAMostrar && (
               <button 
-                onClick={() => setItemsAMostrar(prev => prev + 10)}
+                onClick={() => setItemsAMostrar(prev => prev + 12)}
                 className="flex items-center gap-2 px-6 py-2 bg-primary/5 border border-primary/20 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary hover:text-black transition-all"
               >
                 <Plus className="w-3 h-3" />
                 Cargar más actividad
               </button>
-            </div>
-          )}
+            )}
+
+            {/* BOTÓN COLAPSAR (Aparece si hay muchas filas) */}
+            {itemsAMostrar > 12 && (
+              <button 
+                onClick={() => {
+                  setItemsAMostrar(12);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="flex items-center gap-2 px-6 py-2 bg-zinc-800 border border-zinc-700 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 hover:text-white transition-all"
+              >
+                <ChevronUp className="w-3 h-3" />
+                Colapsar
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
   )
 }
-
-import React from "react" // Necesario para React.Fragment
