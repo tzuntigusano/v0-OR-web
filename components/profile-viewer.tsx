@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react"
 import Image from "next/image"
 import { 
   Rocket, Shield, Target, Award, Zap, Star, Plus, 
-  ChevronUp, ChevronDown, Activity, Sword, Heart, UserPlus, Crosshair 
+  ChevronUp, ChevronDown, Activity, Sword, Heart, UserPlus, Crosshair, Medal, X, ChevronRight
 } from "lucide-react"
 
 // --- TIPOS ---
@@ -21,6 +21,13 @@ interface Specialty {
   sub: SubSpecialty[];
 }
 
+interface Condecoracion {
+  id: string;
+  nombre: string;
+  fecha: string;
+  imageUrl: string;
+}
+
 // --- CONFIGURACIÓN VISUAL ---
 const ACTIVIDAD_STYLES: Record<string, string> = {
   "Operación": "bg-red-500/10 text-red-400 border-red-500/20",
@@ -29,23 +36,31 @@ const ACTIVIDAD_STYLES: Record<string, string> = {
   "Evento": "bg-amber-500/10 text-amber-400 border-amber-500/20",
 }
 
-// Iconos ahora siempre blancos
 const ICON_MAP: Record<string, React.ReactNode> = {
-  // Especialidades Principales (Padres)
   "Pilot": <Rocket className="w-3.5 h-3.5 text-white" />,
   "Capital Ship Pilot": <Shield className="w-3.5 h-3.5 text-white" />,
   "Soldier": <Target className="w-3.5 h-3.5 text-white" />,
   "Wing Commander": <Award className="w-3.5 h-3.5 text-white" />,
-  
-  // Subespecialidades Pilot
   "Dogfighter": <Sword className="w-3.5 h-3.5 text-white" />,
   "Flight Support": <Activity className="w-3.5 h-3.5 text-white" />,
   "Multicrew Fighter": <UserPlus className="w-3.5 h-3.5 text-white" />,
-  
-  // Subespecialidades Soldier
   "Medic": <Heart className="w-3.5 h-3.5 text-white" />,
   "Infiltrator": <Crosshair className="w-3.5 h-3.5 text-white" />,
 }
+
+// NUEVOS TÍTULOS ACTUALIZADOS
+const TITULOS_DISPONIBLES = [
+  "Ashborn",
+  "Endgamer",
+  "Outraider",
+  "Mono"
+];
+
+const CONDECORACIONES_MOCK: Condecoracion[] = [
+  { id: "1", nombre: "Cruz de Valor", fecha: "2026-01-10", imageUrl: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=500&auto=format&fit=crop" },
+  { id: "2", nombre: "As de Combate", fecha: "2025-12-15", imageUrl: "https://images.unsplash.com/photo-1589182397057-b82b76ff1bbd?q=80&w=500&auto=format&fit=crop" },
+  { id: "3", nombre: "Servicio Distinguido", fecha: "2025-11-20", imageUrl: "https://images.unsplash.com/photo-1590556409324-aa1d726e5c3c?q=80&w=500&auto=format&fit=crop" },
+];
 
 const getTierStyle = (tier: string) => {
   switch(tier) {
@@ -75,21 +90,16 @@ const ESPECIALIDADES_DATA: Specialty[] = [
       { nombre: "Infiltrator", tier: "T2", dkps: 500 },
     ]
   },
-  { nombre: "Wing Commander", tier: "T0", dkps: 50, sub: [] },
-]
+];
 
 const generateMockHistory = () => {
   const actividades = ["Operación", "Flota", "Entrenamiento", "Evento"];
   const especialidades = ["Pilot", "Soldier", "Capital Ship Pilot", "Wing Commander"];
   const data = [];
   const now = new Date();
-  
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 30; i++) {
     const date = new Date();
-    // 80% de los datos son de este mes para ver el agrupado
-    const daysOffset = i < 40 ? Math.floor(Math.random() * 14) : 30 + i;
-    date.setDate(now.getDate() - daysOffset);
-    
+    date.setDate(now.getDate() - i);
     data.push({
       fecha: date,
       id: Math.floor(Math.random() * 100) + 1,
@@ -103,10 +113,12 @@ const generateMockHistory = () => {
 
 const HISTORIAL_DATA = generateMockHistory();
 
-export function ProfileViewer({ user }: { user: any }) {
+export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: boolean }) {
   const [filtro, setFiltro] = useState("General");
   const [itemsAMostrar, setItemsAMostrar] = useState(12);
   const [expandedSpecialties, setExpandedSpecialties] = useState<string[]>([]);
+  const [tituloSeleccionado, setTituloSeleccionado] = useState(TITULOS_DISPONIBLES[0]);
+  const [selectedMedal, setSelectedMedal] = useState<Condecoracion | null>(null);
 
   const toggleSpecialty = (name: string) => {
     setExpandedSpecialties(prev => 
@@ -125,26 +137,61 @@ export function ProfileViewer({ user }: { user: any }) {
 
   const getMonthLabel = (date: Date) => {
     const now = new Date();
-    if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) {
-      return "ESTE MES";
-    }
+    if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) return "ESTE MES";
     return date.toLocaleString('es-ES', { month: 'long' }).toUpperCase();
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-20 text-white">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-20 text-white relative">
       
-      {/* --- COLUMNA IZQUIERDA --- */}
+      {/* MODAL DE CONDECORACIÓN */}
+      {selectedMedal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm" onClick={() => setSelectedMedal(null)}>
+          <div className="relative max-w-lg w-full bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setSelectedMedal(null)} className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black rounded-full text-white transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+            <div className="relative aspect-square w-full">
+              <Image src={selectedMedal.imageUrl} alt={selectedMedal.nombre} fill className="object-cover" />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-zinc-950 p-8 text-center">
+                <h3 className="text-3xl font-black uppercase tracking-tighter">{selectedMedal.nombre}</h3>
+                <p className="text-primary font-bold text-sm tracking-widest mt-1">OTORGADA EL {selectedMedal.fecha}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* COLUMNA IZQUIERDA */}
       <div className="lg:col-span-4 space-y-6">
         
-        {/* Header Usuario */}
-        <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-xl flex items-center gap-4">
-          <div className="relative w-16 h-16 shrink-0">
-            <Image src={avatarUrl} alt={displayName} fill className="rounded-full border-2 border-primary object-cover" />
+        {/* Perfil & Título */}
+        <div className="p-6 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-4 shadow-xl">
+          <div className="flex items-center gap-4">
+            <div className="relative w-20 h-20 shrink-0">
+              <Image src={avatarUrl} alt={displayName} fill className="rounded-full border-2 border-primary object-cover shadow-lg shadow-primary/20" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-tighter leading-none">{displayName}</h2>
+              <p className="text-primary text-[10px] font-bold tracking-[0.3em] uppercase mt-2">Raider Elite</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold uppercase tracking-tighter">{displayName}</h2>
-            <p className="text-primary text-[10px] font-bold tracking-widest uppercase">Raider Elite</p>
+
+          <div className="pt-4 border-t border-zinc-800/50">
+            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Título de Perfil</label>
+            {isOwner ? (
+              <select 
+                value={tituloSeleccionado}
+                onChange={(e) => setTituloSeleccionado(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-xs font-bold text-zinc-200 focus:outline-none focus:border-primary transition-colors cursor-pointer appearance-none shadow-inner"
+              >
+                {TITULOS_DISPONIBLES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            ) : (
+              <div className="px-3 py-2 bg-zinc-900/50 rounded-lg border border-zinc-800 text-xs font-bold text-zinc-400">
+                {tituloSeleccionado}
+              </div>
+            )}
           </div>
         </div>
 
@@ -152,67 +199,47 @@ export function ProfileViewer({ user }: { user: any }) {
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
             <Zap className="w-3.5 h-3.5 text-white" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-300">DKPs por Actividad</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest">DKPs por Actividad</span>
           </div>
           <div className="divide-y divide-zinc-900">
             {["Flotas", "Entrenamientos", "Operaciones", "Eventos", "Endgame"].map((label) => (
               <div key={label} className="flex justify-between items-center px-4 py-2.5 hover:bg-white/[0.02]">
                 <span className="text-xs text-zinc-400">{label}</span>
-                <span className="text-xs font-mono font-bold">450</span>
+                <span className="text-xs font-mono font-bold text-white">450</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Especialidades (Acordeón) */}
+        {/* Especialidades */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
             <Star className="w-3.5 h-3.5 text-white" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-300">Especialidades</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest">Especialidades</span>
           </div>
           <table className="w-full text-xs">
-            <thead className="text-[8px] uppercase text-zinc-500 bg-zinc-900/20 font-bold">
-              <tr>
-                <th className="text-left p-3">Especialidad</th>
-                <th className="text-center p-3">Tier</th>
-                <th className="text-right p-3">DKPs</th>
-              </tr>
-            </thead>
             <tbody className="divide-y divide-zinc-900">
               {ESPECIALIDADES_DATA.map((esp) => {
                 const isExpanded = expandedSpecialties.includes(esp.nombre);
                 const hasSub = esp.sub.length > 0;
                 return (
                   <React.Fragment key={esp.nombre}>
-                    {/* Padre */}
-                    <tr 
-                      className="group cursor-pointer hover:bg-white/[0.02] transition-colors"
-                      onClick={() => hasSub && toggleSpecialty(esp.nombre)}
-                    >
-                      <td className="p-3 flex items-center gap-2 text-zinc-200">
-                        <div className="bg-zinc-900 p-1 rounded-md border border-zinc-800">
-                          {ICON_MAP[esp.nombre] || <Activity className="w-3 h-3 text-white" />}
-                        </div>
-                        <span className="font-bold">{esp.nombre}</span>
+                    <tr className="group cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => hasSub && toggleSpecialty(esp.nombre)}>
+                      <td className="p-3 flex items-center gap-3">
+                        <div className="bg-zinc-900 p-1.5 rounded-lg border border-zinc-800">{ICON_MAP[esp.nombre]}</div>
+                        <span className="font-bold text-zinc-200">{esp.nombre}</span>
                         {hasSub && (isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-500" /> : <Plus className="w-3 h-3 text-primary" />)}
                       </td>
-                      <td className="p-3 text-center">
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ${getTierStyle(esp.tier)}`}>{esp.tier}</span>
-                      </td>
+                      <td className="p-3 text-right"><span className={`text-[9px] px-2 py-0.5 rounded border font-black ${getTierStyle(esp.tier)}`}>{esp.tier}</span></td>
                       <td className="p-3 text-right font-mono text-primary font-bold">{esp.dkps}</td>
                     </tr>
-                    {/* Hijos */}
                     {isExpanded && esp.sub.map((sub) => (
                       <tr key={sub.nombre} className="bg-black/40 border-l-2 border-primary/30 group/sub">
                         <td className="p-2 pl-10 flex items-center gap-3 text-zinc-400 text-[11px]">
-                          <div className="bg-zinc-900/50 p-1 rounded border border-zinc-800 group-hover/sub:border-zinc-700 transition-colors">
-                            {ICON_MAP[sub.nombre] || <Activity className="w-3 h-3 text-white" />}
-                          </div>
-                          <span className="font-medium">{sub.nombre}</span>
+                          <div className="bg-zinc-900/50 p-1 rounded border border-zinc-800">{ICON_MAP[sub.nombre]}</div>
+                          {sub.nombre}
                         </td>
-                        <td className="p-2 text-center">
-                          <span className={`text-[8px] px-1.5 py-0.2 rounded border font-bold opacity-70 ${getTierStyle(sub.tier)}`}>{sub.tier}</span>
-                        </td>
+                        <td className="p-2 text-right"><span className={`text-[8px] px-1.5 py-0.2 rounded border font-bold opacity-70 ${getTierStyle(sub.tier)}`}>{sub.tier}</span></td>
                         <td className="p-2 text-right font-mono text-zinc-500 text-[11px] pr-3 italic">{sub.dkps}</td>
                       </tr>
                     ))}
@@ -222,33 +249,54 @@ export function ProfileViewer({ user }: { user: any }) {
             </tbody>
           </table>
         </div>
+
+        {/* Condecoraciones */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
+          <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
+            <Medal className="w-3.5 h-3.5 text-white" />
+            <span className="text-[9px] font-bold uppercase tracking-widest">Condecoraciones</span>
+          </div>
+          <div className="divide-y divide-zinc-900">
+            {CONDECORACIONES_MOCK.map((medal) => (
+              <button key={medal.id} onClick={() => setSelectedMedal(medal)} className="w-full flex items-center justify-between p-4 hover:bg-primary/5 transition-all group border-none text-left">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg overflow-hidden border border-zinc-800 group-hover:border-primary/50 transition-colors relative">
+                    <Image src={medal.imageUrl} alt={medal.nombre} fill className="object-cover" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-zinc-200 uppercase group-hover:text-primary transition-colors">{medal.nombre}</p>
+                    <p className="text-[10px] text-zinc-500 font-mono">{medal.fecha}</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-primary transition-all group-hover:translate-x-1" />
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* --- COLUMNA DERECHA --- */}
+      {/* COLUMNA DERECHA */}
       <div className="lg:col-span-8 space-y-4">
-        
-        {/* Filtros */}
         <div className="flex flex-wrap gap-2">
           {["General", "Flota", "Operación", "Entrenamiento", "Evento"].map((cat) => (
             <button key={cat} onClick={() => { setFiltro(cat); setItemsAMostrar(12); }}
-              className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-widest border transition-all ${
-                filtro === cat ? "bg-primary border-primary text-black" : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white"
+              className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest border transition-all ${
+                filtro === cat ? "bg-primary border-primary text-black shadow-lg shadow-primary/20" : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white"
               }`}>
               {cat === "General" ? "Actividad General" : cat + "s"}
             </button>
           ))}
         </div>
 
-        {/* Tabla Principal */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <table className="w-full text-left">
-            <thead className="text-[9px] uppercase text-zinc-500 bg-zinc-900/50 font-bold">
+            <thead className="text-[9px] uppercase text-zinc-500 bg-zinc-900/50 font-bold italic">
               <tr>
-                <th className="px-4 py-2 border-b border-zinc-800">Fecha</th>
-                <th className="px-4 py-2 border-b border-zinc-800">ID</th>
-                <th className="px-4 py-2 border-b border-zinc-800">Actividad</th>
-                <th className="px-4 py-2 border-b border-zinc-800">Especialidad</th>
-                <th className="px-4 py-2 border-b border-zinc-800 text-right">DKPs</th>
+                <th className="px-4 py-3 border-b border-zinc-800">Fecha</th>
+                <th className="px-4 py-3 border-b border-zinc-800">ID</th>
+                <th className="px-4 py-3 border-b border-zinc-800">Actividad</th>
+                <th className="px-4 py-3 border-b border-zinc-800">Especialidad</th>
+                <th className="px-4 py-3 border-b border-zinc-800 text-right">DKPs</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-900">
@@ -260,7 +308,7 @@ export function ProfileViewer({ user }: { user: any }) {
                   <React.Fragment key={i}>
                     {showHeader && (
                       <tr className="bg-zinc-900/30">
-                        <td colSpan={5} className="px-4 py-1.5 text-[10px] font-black text-primary tracking-[0.3em] border-b border-zinc-800">{currentMonth}</td>
+                        <td colSpan={5} className="px-4 py-2 text-[10px] font-black text-primary tracking-[0.4em] border-b border-zinc-800">{currentMonth}</td>
                       </tr>
                     )}
                     <tr className="hover:bg-white/[0.01] transition-colors group">
@@ -269,8 +317,8 @@ export function ProfileViewer({ user }: { user: any }) {
                       <td className="px-4 py-2">
                         <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${ACTIVIDAD_STYLES[row.actividad]}`}>{row.actividad}</span>
                       </td>
-                      <td className="px-4 py-2 text-zinc-400 text-xs flex items-center gap-2 text-zinc-300">
-                        {ICON_MAP[row.especialidad] || <Activity className="w-3 h-3 text-white" />}
+                      <td className="px-4 py-2 text-zinc-300 text-xs flex items-center gap-2">
+                        <div className="opacity-50 group-hover:opacity-100 transition-opacity">{ICON_MAP[row.especialidad] || <Activity className="w-3 h-3" />}</div>
                         {row.especialidad}
                       </td>
                       <td className="px-4 py-2 text-right font-mono font-bold text-primary text-xs">+{row.dkps}</td>
@@ -280,8 +328,7 @@ export function ProfileViewer({ user }: { user: any }) {
               })}
             </tbody>
           </table>
-
-          {/* Botones de Control */}
+          
           <div className="p-4 bg-zinc-900/30 flex justify-center items-center gap-4 border-t border-zinc-800">
             {historialFiltrado.length > itemsAMostrar && (
               <button onClick={() => setItemsAMostrar(p => p + 12)} className="px-6 py-2 bg-primary/5 border border-primary/20 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary hover:text-black transition-all">
