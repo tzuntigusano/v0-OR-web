@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import Image from "next/image"
 import { 
   Rocket, Shield, Target, Award, Zap, Star, Plus, 
@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { useDivision } from "@/context/DivisionContext"
 
+// --- CONFIGURACIÓN DE COLORES POR CATEGORÍA ---
 const COLORES_ACTIVIDAD: Record<string, string> = {
   "Operación": "bg-red-500/10 text-red-400 border-red-500/20",
   "Flota": "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -41,11 +42,6 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 }
 
 const TITULOS_DISPONIBLES = ["Ashborn", "Endgamer", "Outraider", "Mono"];
-
-const CONDECORACIONES_MOCK = [
-  { id: "1", nombre: "Cruz de Valor", fecha: "2026-01-10", imageUrl: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=500&auto=format&fit=crop" },
-  { id: "2", nombre: "As de Combate", fecha: "2025-12-15", imageUrl: "https://images.unsplash.com/photo-1589182397057-b82b76ff1bbd?q=80&w=500&auto=format&fit=crop" },
-];
 
 const RESUMEN_DKP = [
   { label: "Flotas", value: 1450, color: "text-white" },
@@ -92,16 +88,16 @@ const HISTORIAL_DATA = Array.from({ length: 50 }).map((_, i) => {
 });
 
 export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: boolean }) {
-  const { division, setDivision } = useDivision();
+  // Usamos el contexto solo para saber en qué modo visual estamos (Militar/Industrial)
+  const { division } = useDivision();
   
-  // Mapeamos el estado global a nuestra lógica local de secciones
-  const seccionMaestra = (division.toUpperCase() as "ACTIVIDAD" | "APORTACIONES" | "INDUSTRIAL");
-
+  // ESTADO LOCAL PARA LA TABLA: Independiente del switch global
+  const [seccionTabla, setSeccionTabla] = useState<"ACTIVIDAD" | "APORTACIONES" | "INDUSTRIAL">("ACTIVIDAD");
   const [filtro, setFiltro] = useState("General");
+  
   const [itemsAMostrar, setItemsAMostrar] = useState(12);
   const [expandedSpecialties, setExpandedSpecialties] = useState<string[]>([]);
   const [tituloSeleccionado, setTituloSeleccionado] = useState(TITULOS_DISPONIBLES[0]);
-  const [selectedMedal, setSelectedMedal] = useState<any | null>(null);
 
   const toggleSpecialty = (name: string) => {
     setExpandedSpecialties(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
@@ -113,11 +109,11 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
 
   const datosVisibles = useMemo(() => {
     return HISTORIAL_DATA.filter(item => {
-      if (item.seccion !== seccionMaestra) return false;
+      if (item.seccion !== seccionTabla) return false;
       if (filtro === "General") return true;
       return item.actividad === filtro;
     }).slice(0, itemsAMostrar);
-  }, [seccionMaestra, filtro, itemsAMostrar]);
+  }, [seccionTabla, filtro, itemsAMostrar]);
 
   const getMonthLabel = (date: Date) => {
     return date.toLocaleString('es-ES', { month: 'long' }).toUpperCase();
@@ -126,27 +122,10 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-20 text-white relative">
       
-      {/* MODAL DE MEDALLAS */}
-      {selectedMedal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm" onClick={() => setSelectedMedal(null)}>
-          <div className="relative max-w-lg w-full bg-card border border-border rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setSelectedMedal(null)} className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black rounded-full text-white transition-colors">
-              <X className="w-6 h-6" />
-            </button>
-            <div className="relative aspect-square w-full">
-              <Image src={selectedMedal.imageUrl} alt={selectedMedal.nombre} fill className="object-cover" />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background p-8 text-center text-white">
-                <h3 className="text-2xl font-black uppercase tracking-tighter">{selectedMedal.nombre}</h3>
-                <p className="text-primary font-bold text-xs tracking-widest mt-1 uppercase font-mono">Otorgada el {selectedMedal.fecha}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* COLUMNA IZQUIERDA */}
       <div className="lg:col-span-4 space-y-6">
-        <div className="p-6 bg-card/40 border border-border rounded-2xl space-y-4">
+        {/* PERFIL */}
+        <div className="p-6 bg-card border border-border rounded-2xl space-y-4">
           <div className="flex items-center gap-4">
             <div className="relative w-16 h-16 shrink-0">
               <Image src={avatarUrl} alt={displayName} fill className="rounded-full border-2 border-primary object-cover shadow-lg shadow-primary/20" />
@@ -165,6 +144,7 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
           </div>
         </div>
 
+        {/* TABLA DKPS RESUMEN */}
         <div className="bg-card border border-border rounded-xl overflow-hidden shadow-2xl transition-all duration-500">
           <div className="p-3 bg-muted/50 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -188,63 +168,84 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
             <Star className="w-3.5 h-3.5 text-foreground" />
             <span className="text-[9px] font-bold uppercase tracking-widest text-foreground">Especialidades</span>
           </div>
-          <table className="w-full text-xs">
-            <tbody className="divide-y divide-border/20">
-              {ESPECIALIDADES_DATA.map((esp) => {
-                const isExpanded = expandedSpecialties.includes(esp.nombre);
-                const hasSub = esp.sub.length > 0;
-                return (
-                  <React.Fragment key={esp.nombre}>
-                    <tr className="group cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => hasSub && toggleSpecialty(esp.nombre)}>
-                      <td className="p-3 flex items-center gap-3 whitespace-nowrap">
-                        <div className="bg-background p-1.5 rounded-lg border border-border">
-                          {ICON_MAP[esp.nombre] || <Zap className="w-3.5 h-3.5" />}
-                        </div>
-                        <span className="font-bold text-foreground">{esp.nombre}</span>
-                        {hasSub && (isExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground" /> : <Plus className="w-3 h-3 text-primary" />)}
-                      </td>
-                      <td className="p-3 text-right">
-                        <span className={`text-[9px] px-2 py-0.5 rounded border font-black ${getTierStyle(esp.tier)}`}>{esp.tier}</span>
-                      </td>
-                      <td className="p-3 text-right font-mono text-primary font-bold">{esp.dkps}</td>
-                    </tr>
-                    {isExpanded && esp.sub.map((sub) => (
-                      <tr key={sub.nombre} className="bg-background/40 border-l-2 border-primary/30">
-                        <td className="p-2 pl-10 flex items-center gap-3 text-muted-foreground text-[11px] whitespace-nowrap">
-                          {sub.nombre}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <tbody className="divide-y divide-border/20">
+                {ESPECIALIDADES_DATA.map((esp) => {
+                  const isExpanded = expandedSpecialties.includes(esp.nombre);
+                  const hasSub = esp.sub.length > 0;
+                  return (
+                    <React.Fragment key={esp.nombre}>
+                      <tr className="group cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => hasSub && toggleSpecialty(esp.nombre)}>
+                        <td className="p-3 flex items-center gap-3 whitespace-nowrap text-foreground font-bold">
+                          <div className="bg-background p-1.5 rounded-lg border border-border shrink-0">
+                            {ICON_MAP[esp.nombre] || <Zap className="w-3.5 h-3.5" />}
+                          </div>
+                          {esp.nombre}
+                          {hasSub && (isExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground" /> : <Plus className="w-3 h-3 text-primary" />)}
                         </td>
-                        <td className="p-2 text-right">
-                          <span className={`text-[8px] px-1.5 py-0.2 rounded border font-bold opacity-70 ${getTierStyle(sub.tier)}`}>{sub.tier}</span>
+                        <td className="p-3 text-right">
+                          <span className={`text-[9px] px-2 py-0.5 rounded border font-black ${getTierStyle(esp.tier)}`}>{esp.tier}</span>
                         </td>
-                        <td className="p-2 text-right font-mono text-muted-foreground text-[11px] pr-3 italic">{sub.dkps}</td>
+                        <td className="p-3 text-right font-mono text-primary font-bold">{esp.dkps}</td>
                       </tr>
-                    ))}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                      {isExpanded && esp.sub.map((sub) => (
+                        <tr key={sub.nombre} className="bg-background/40 border-l-2 border-primary/30">
+                          <td className="p-2 pl-10 flex items-center gap-3 text-muted-foreground text-[11px] whitespace-nowrap">
+                            <div className="bg-background p-1 rounded border border-border shrink-0">
+                              {ICON_MAP[sub.nombre] || <Activity className="w-3 h-3" />}
+                            </div>
+                            {sub.nombre}
+                          </td>
+                          <td className="p-2 text-right">
+                            <span className={`text-[8px] px-1.5 py-0.2 rounded border font-bold opacity-70 ${getTierStyle(sub.tier)}`}>{sub.tier}</span>
+                          </td>
+                          <td className="p-2 text-right font-mono text-muted-foreground text-[11px] pr-3 italic">{sub.dkps}</td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {/* COLUMNA DERECHA */}
       <div className="lg:col-span-8 space-y-6">
+        {/* Chips Maestros: Solo cambian la tabla, NO la división global */}
         <div className="flex gap-3 border-b border-border pb-4 overflow-x-auto scrollbar-hide">
           {["ACTIVIDAD", "APORTACIONES", "INDUSTRIAL"].map((sec) => (
-            <button key={sec} onClick={() => { setDivision(sec.toLowerCase() as any); setFiltro("General"); setItemsAMostrar(12); }}
+            <button 
+              key={sec} 
+              onClick={() => { 
+                setSeccionTabla(sec as any); 
+                setFiltro("General"); 
+                setItemsAMostrar(12); 
+              }}
               className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border transition-all ${
-                seccionMaestra === sec ? "bg-foreground text-background border-foreground shadow-lg shadow-white/10" : "bg-card/50 border-border text-muted-foreground hover:text-foreground"
-              }`}>{sec}</button>
+                seccionTabla === sec ? "bg-foreground text-background border-foreground shadow-lg shadow-white/10" : "bg-card/50 border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {sec}
+            </button>
           ))}
         </div>
 
+        {/* Sub-filtros dinámicos */}
         <div className="flex flex-wrap gap-2">
-          {seccionMaestra === "ACTIVIDAD" && ["General", "Flota", "Operación", "Entrenamiento", "Evento"].map((cat) => (
-            <button key={cat} onClick={() => setFiltro(cat)} className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest border transition-all ${filtro === cat ? "bg-primary border-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}>
+          {seccionTabla === "ACTIVIDAD" && ["General", "Flota", "Operación", "Entrenamiento", "Evento"].map((cat) => (
+            <button key={cat} onClick={() => setFiltro(cat)} className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest border transition-all ${filtro === cat ? "bg-primary border-primary text-primary-foreground" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}>
               {cat === "General" ? "Actividad General" : cat + "s"}
             </button>
           ))}
-          {seccionMaestra === "INDUSTRIAL" && ["General", "Endgame", "Wikelo", "Bases"].map((cat) => (
+          {seccionTabla === "APORTACIONES" && ["General", "Endgame", "Clean Air", "Contested Zone"].map((cat) => (
+            <button key={cat} onClick={() => setFiltro(cat)} className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest border transition-all ${filtro === cat ? "bg-amber-500 border-amber-500 text-black" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}>
+              {cat === "General" ? "Aportaciones General" : cat}
+            </button>
+          ))}
+          {seccionTabla === "INDUSTRIAL" && ["General", "Endgame", "Wikelo", "Bases"].map((cat) => (
             <button key={cat} onClick={() => setFiltro(cat)} className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest border transition-all ${filtro === cat ? "bg-accent border-accent text-black shadow-[0_0_15px_rgba(53,182,236,0.3)]" : "bg-card border-border text-muted-foreground hover:text-accent"}`}>
               {cat === "General" ? "Industrial General" : cat}
             </button>
@@ -259,7 +260,7 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
                 <tr>
                   <th className="px-4 py-3 border-b border-border">Fecha</th>
                   <th className="px-4 py-3 border-b border-border">ID</th>
-                  <th className="px-4 py-3 border-b border-border">{seccionMaestra === "ACTIVIDAD" ? "Actividad" : "Tarea"}</th>
+                  <th className="px-4 py-3 border-b border-border">{seccionTabla === "ACTIVIDAD" ? "Actividad" : "Tarea"}</th>
                   <th className="px-4 py-3 border-b border-border text-right">DKPS</th>
                 </tr>
               </thead>
@@ -270,8 +271,9 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
                   const showHeader = currentMonth !== prevMonth;
                   
                   let chipStyle = "bg-muted text-muted-foreground border-border";
-                  if (seccionMaestra === "ACTIVIDAD") chipStyle = COLORES_ACTIVIDAD[row.actividad] || chipStyle;
-                  if (seccionMaestra === "INDUSTRIAL") chipStyle = COLORES_INDUSTRIAL[row.actividad] || chipStyle;
+                  if (seccionTabla === "ACTIVIDAD") chipStyle = COLORES_ACTIVIDAD[row.actividad] || chipStyle;
+                  if (seccionTabla === "APORTACIONES") chipStyle = COLORES_APORTACIONES[row.actividad] || chipStyle;
+                  if (seccionTabla === "INDUSTRIAL") chipStyle = COLORES_INDUSTRIAL[row.actividad] || chipStyle;
 
                   return (
                     <React.Fragment key={i}>
@@ -295,7 +297,7 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
             </table>
           </div>
           <div className="p-4 bg-muted/30 flex flex-col sm:flex-row items-center justify-center gap-4 border-t border-border">
-            {itemsAMostrar < HISTORIAL_DATA.filter(item => item.seccion === seccionMaestra && (filtro === "General" || item.actividad === filtro)).length && (
+            {itemsAMostrar < HISTORIAL_DATA.filter(item => item.seccion === seccionTabla && (filtro === "General" || item.actividad === filtro)).length && (
               <button onClick={() => setItemsAMostrar(p => p + 12)} className="px-6 py-2 bg-primary/5 border border-primary/20 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary hover:text-primary-foreground transition-all">
                 <Plus className="w-3 h-3 inline mr-2" /> Cargar más
               </button>
