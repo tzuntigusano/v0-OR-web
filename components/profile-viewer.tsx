@@ -88,11 +88,11 @@ const ESPECIALIDADES_DATA: Specialty[] = [
 ];
 
 const RESUMEN_DKP = [
-  { label: "Flotas", value: 1450, color: "text-blue-400" },
-  { label: "Entrenamientos", value: 890, color: "text-emerald-400" },
-  { label: "Operaciones", value: 2100, color: "text-red-400" },
-  { label: "Eventos", value: 650, color: "text-amber-400" },
-  { label: "Endgame", value: 4200, color: "text-primary" },
+  { label: "Flotas", value: 1450, color: "text-white" },
+  { label: "Entrenamientos", value: 890, color: "text-white" },
+  { label: "Operaciones", value: 2100, color: "text-white" },
+  { label: "Eventos", value: 650, color: "text-white" },
+  { label: "Endgame", value: 4200, color: "text-text-white" },
 ];
 
 const generateMockHistory = () => {
