@@ -1,8 +1,9 @@
+"use client"
+
 import type React from "react"
-import type { Metadata } from "next"
 import { Orbitron, Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { DivisionProvider } from "@/context/DivisionContext" // Importamos el cerebro del Switch
+import { DivisionProvider, useDivision } from "@/context/DivisionContext" 
 import "./globals.css"
 
 const orbitron = Orbitron({
@@ -16,34 +17,23 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
-export const metadata: Metadata = {
-  title: "Outraiders - Organización Star Citizen",
-  description:
-    "Únete a Outraiders, una élite organización de Star Citizen. Explora el universo con los mejores pilotos.",
-  generator: "v0.app",
-  keywords: ["Star Citizen", "Outraiders", "Gaming", "Space Simulation", "Organización"],
-  openGraph: {
-    title: "Outraiders - Organización Star Citizen",
-    description: "Únete a Outraiders, una élite organización de Star Citizen",
-    type: "website",
-  },
-  icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "/apple-icon.png",
-  },
+function RootContent({ children }: { children: React.ReactNode }) {
+  const { division } = useDivision();
+
+  // Forzamos la comparación a minúsculas para evitar el error de overlap 
+  // o usamos el valor exacto del tipo Division.
+  const isIndustrial = division.toLowerCase() === "industrial";
+
+  return (
+    <body 
+      className={`${orbitron.variable} ${inter.variable} font-sans antialiased transition-colors duration-700 ${
+        isIndustrial ? "industrial" : ""
+      }`}
+    >
+      {children}
+      <Analytics />
+    </body>
+  );
 }
 
 export default function RootLayout({
@@ -53,13 +43,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${orbitron.variable} ${inter.variable} font-sans antialiased`}>
-        {/* Envolvemos con el Provider para que el Switch funcione en toda la web */}
-        <DivisionProvider>
+      <DivisionProvider>
+        <RootContent>
           {children}
-          <Analytics />
-        </DivisionProvider>
-      </body>
+        </RootContent>
+      </DivisionProvider>
     </html>
   )
 }
