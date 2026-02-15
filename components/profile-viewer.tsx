@@ -4,7 +4,8 @@ import React, { useState, useMemo } from "react"
 import Image from "next/image"
 import { 
   Rocket, Shield, Target, Award, Zap, Star, Plus, 
-  ChevronUp, ChevronDown, Activity, Sword, Heart, UserPlus, Crosshair, Medal, X, ChevronRight
+  ChevronUp, ChevronDown, Activity, Sword, Heart, UserPlus, Crosshair, Medal, X, ChevronRight,
+  TrendingUp, Calendar, Box, StarOff
 } from "lucide-react"
 
 // --- TIPOS ---
@@ -86,6 +87,14 @@ const ESPECIALIDADES_DATA: Specialty[] = [
   },
 ];
 
+const RESUMEN_DKP = [
+  { label: "Flotas", value: 1450, color: "text-blue-400" },
+  { label: "Entrenamientos", value: 890, color: "text-emerald-400" },
+  { label: "Operaciones", value: 2100, color: "text-red-400" },
+  { label: "Eventos", value: 650, color: "text-amber-400" },
+  { label: "Endgame", value: 4200, color: "text-primary" },
+];
+
 const generateMockHistory = () => {
   const actividades = ["Operación", "Flota", "Entrenamiento", "Evento"];
   const especialidades = ["Pilot", "Soldier", "Capital Ship Pilot", "Wing Commander"];
@@ -120,7 +129,6 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
     );
   };
 
-  // --- LÓGICA DE DATOS PARAMETRIZADA (IGUAL QUE EN NAVIGATION.TSX) ---
   const meta = user?.user_metadata;
   const avatarUrl = meta?.avatar_url || meta?.picture || "/placeholder.svg";
   const displayName = meta?.global_name || meta?.custom_claims?.global_name || meta?.display_name || "Usuario";
@@ -188,6 +196,22 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
                 {tituloSeleccionado}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* TABLA DE DKPS (RESTAURADA) */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
+          <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
+            <TrendingUp className="w-3.5 h-3.5 text-white" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-white">Resumen de Actividad</span>
+          </div>
+          <div className="divide-y divide-zinc-900">
+            {RESUMEN_DKP.map((item) => (
+              <div key={item.label} className="flex items-center justify-between p-3 px-4 hover:bg-white/[0.02] transition-colors">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{item.label}</span>
+                <span className={`font-mono font-bold text-xs ${item.color}`}>{item.value.toLocaleString()} DKP</span>
+              </div>
+            ))}
           </div>
         </div>
 
