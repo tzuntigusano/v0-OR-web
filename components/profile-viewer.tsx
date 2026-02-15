@@ -182,38 +182,60 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
           </div>
         </div>
 
-        {/* ESPECIALIDADES */}
+        {/* ESPECIALIDADES (RESTAURADA CON DISEÑO EXPANDIBLE) */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
             <Star className="w-3.5 h-3.5 text-white" />
             <span className="text-[9px] font-bold uppercase tracking-widest text-white">Especialidades</span>
           </div>
-          <table className="w-full text-xs">
-            <tbody className="divide-y divide-zinc-900">
-              {ESPECIALIDADES_DATA.map((esp) => {
-                const isExpanded = expandedSpecialties.includes(esp.nombre);
-                return (
-                  <React.Fragment key={esp.nombre}>
-                    <tr className="group cursor-pointer hover:bg-white/[0.02]" onClick={() => esp.sub.length > 0 && setExpandedSpecialties(prev => prev.includes(esp.nombre) ? prev.filter(n => n !== esp.nombre) : [...prev, esp.nombre])}>
-                      <td className="p-3 flex items-center gap-3">
-                        <div className="bg-zinc-900 p-1.5 rounded-lg border border-zinc-800">{ICON_MAP[esp.nombre] || <Zap className="w-3.5 h-3.5" />}</div>
-                        <span className="font-bold text-zinc-200">{esp.nombre}</span>
-                        {esp.sub.length > 0 && (isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-500" /> : <Plus className="w-3 h-3 text-primary" />)}
-                      </td>
-                      <td className="p-3 text-right"><span className={`text-[9px] px-2 py-0.5 rounded border font-black ${getTierStyle(esp.tier)}`}>{esp.tier}</span></td>
-                      <td className="p-3 text-right font-mono text-primary font-bold">{esp.dkps}</td>
-                    </tr>
-                    {isExpanded && esp.sub.map((sub) => (
-                      <tr key={sub.nombre} className="bg-black/40 border-l-2 border-primary/30">
-                        <td className="p-2 pl-10 text-zinc-400 text-[11px]">{sub.nombre}</td>
-                        <td className="p-2 text-right font-mono text-zinc-500 text-[11px] pr-3 italic">{sub.dkps}</td>
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-zinc-800">
+            <table className="w-full text-xs min-w-[300px]">
+              <tbody className="divide-y divide-zinc-900">
+                {ESPECIALIDADES_DATA.map((esp) => {
+                  const isExpanded = expandedSpecialties.includes(esp.nombre);
+                  const hasSub = esp.sub.length > 0;
+                  return (
+                    <React.Fragment key={esp.nombre}>
+                      <tr 
+                        className="group cursor-pointer hover:bg-white/[0.02] transition-colors" 
+                        onClick={() => hasSub && toggleSpecialty(esp.nombre)}
+                      >
+                        <td className="p-3 flex items-center gap-3 whitespace-nowrap">
+                          <div className="bg-zinc-900 p-1.5 rounded-lg border border-zinc-800 shrink-0">
+                            {ICON_MAP[esp.nombre] || <Zap className="w-3.5 h-3.5" />}
+                          </div>
+                          <span className="font-bold text-zinc-200">{esp.nombre}</span>
+                          {hasSub && (isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-500" /> : <Plus className="w-3 h-3 text-primary" />)}
+                        </td>
+                        <td className="p-3 text-right">
+                          <span className={`text-[9px] px-2 py-0.5 rounded border font-black ${getTierStyle(esp.tier)}`}>
+                            {esp.tier}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-mono text-primary font-bold">{esp.dkps}</td>
                       </tr>
-                    ))}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                      {isExpanded && esp.sub.map((sub) => (
+                        <tr key={sub.nombre} className="bg-black/40 border-l-2 border-primary/30">
+                          <td className="p-2 pl-10 flex items-center gap-3 text-zinc-400 text-[11px] whitespace-nowrap">
+                            <div className="bg-zinc-900/50 p-1 rounded border border-zinc-800 shrink-0">
+                              {ICON_MAP[sub.nombre] || <Activity className="w-3 h-3" />}
+                            </div>
+                            {sub.nombre}
+                          </td>
+                          <td className="p-2 text-right">
+                            <span className={`text-[8px] px-1.5 py-0.2 rounded border font-bold opacity-70 ${getTierStyle(sub.tier)}`}>
+                              {sub.tier}
+                            </span>
+                          </td>
+                          <td className="p-2 text-right font-mono text-zinc-500 text-[11px] pr-3 italic">{sub.dkps}</td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* CONDECORACIONES */}
