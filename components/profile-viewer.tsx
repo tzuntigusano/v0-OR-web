@@ -201,18 +201,22 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
 
         {/* TABLA DE DKPS (RESTAURADA) */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
-          <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
-            <TrendingUp className="w-3.5 h-3.5 text-white" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-white">Resumen de Actividad (DKP)</span>
+          <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center justify-between">
+            <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
+              <TrendingUp className="w-3.5 h-3.5 text-white" />
+              <span className="text-[9px] font-bold uppercase tracking-widest text-white">Resumen de Actividad</span>
+            </div>
+            {/* CABECERA DE LA COLUMNA DKPS */}
+            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest pr-1">DKPS</span>
           </div>
-          <div className="divide-y divide-zinc-900">
-            {RESUMEN_DKP.map((item) => (
-              <div key={item.label} className="flex items-center justify-between p-3 px-4 hover:bg-white/[0.02] transition-colors">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{item.label}</span>
-                <span className={`font-mono font-bold text-xs ${item.color}`}>{item.value.toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
+            <div className="divide-y divide-zinc-900">
+             {RESUMEN_DKP.map((item) => (
+               <div key={item.label} className="flex items-center justify-between p-3 px-4 hover:bg-white/[0.02] transition-colors">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{item.label}</span>
+                  <span className={`font-mono font-bold text-xs ${item.color}`}>{item.value.toLocaleString()}</span>
+               </div>
+              ))}
+            </div>
         </div>
 
         {/* Especialidades */}
