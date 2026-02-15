@@ -333,10 +333,26 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
               </tbody>
             </table>
           </div>
-          <div className="p-4 bg-zinc-900/30 flex justify-center border-t border-zinc-800">
-            <button onClick={() => setItemsAMostrar(p => p + 12)} className="px-6 py-2 bg-primary/5 border border-primary/20 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary hover:text-black transition-all">
-              <Plus className="w-3 h-3 inline mr-2" /> Cargar más
-            </button>
+          <div className="p-4 bg-zinc-900/30 flex flex-col sm:flex-row items-center justify-center gap-4 border-t border-zinc-800">
+            {/* Botón Cargar más: Solo aparece si hay más datos por mostrar en el filtro actual */}
+            {itemsAMostrar < HISTORIAL_DATA.filter(item => item.seccion === seccionMaestra && (filtro === "General" || item.actividad === filtro)).length && (
+              <button 
+                onClick={() => setItemsAMostrar(p => p + 12)} 
+                className="px-6 py-2 bg-primary/5 border border-primary/20 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary hover:text-black transition-all"
+              >
+                <Plus className="w-3 h-3 inline mr-2" /> Cargar más
+              </button>
+            )}
+
+            {/* Botón Colapsar: Solo aparece si ya hemos cargado más del mínimo inicial */}
+            {itemsAMostrar > 12 && (
+              <button 
+                onClick={() => setItemsAMostrar(12)} 
+                className="px-6 py-2 bg-zinc-800/50 border border-zinc-700 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 hover:bg-zinc-700 hover:text-white transition-all"
+              >
+                <ChevronUp className="w-3 h-3 inline mr-2" /> Colapsar
+              </button>
+            )}
           </div>
         </div>
       </div>
