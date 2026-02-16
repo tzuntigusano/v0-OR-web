@@ -42,21 +42,32 @@
 
 /* TEMA INDUSTRIAL (Versión Clara - Estilo High-Tech RSI) */
 .industrial {
-  --background: oklch(0.95 0.02 210); /* Fondo casi blanco azulado */
-  --foreground: oklch(0.2 0.05 210); /* Texto oscuro para contraste */
-  --card: oklch(0.98 0.01 210); /* Tarjetas blancas */
+  --background: oklch(0.95 0.02 210); 
+  --foreground: oklch(0.2 0.05 210); 
+  --card: oklch(0.98 0.01 210); 
   --card-foreground: oklch(0.2 0.05 210);
-  --primary: oklch(0.6 0.2 200); /* Azul Cian Corporativo */
+  --primary: oklch(0.6 0.2 200); 
   --accent: oklch(0.55 0.2 195);
   --ring: oklch(0.6 0.2 200);
-  --border: oklch(0.85 0.03 210); /* Bordes muy suaves */
+  --border: oklch(0.85 0.03 210); 
   --chart-1: oklch(0.6 0.2 200);
   
-  /* Sombra personalizada para el modo claro */
   --shadow: 0 10px 30px -10px rgba(53, 182, 236, 0.15), 0 4px 10px -5px rgba(0, 0, 0, 0.05);
 }
 
-/* Aplicación de sombras automáticas a las cards en modo industrial */
+/* REGLA CRÍTICA: Forzamos que la cabecera (Navigation) se mantenga negra 
+   incluso si el body tiene la clase .industrial 
+*/
+.industrial nav, 
+.industrial header,
+.industrial .fixed.top-0 {
+  --background: oklch(0.1 0 0);
+  --foreground: oklch(0.98 0 0);
+  --border: oklch(0.25 0.05 25);
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
 .industrial .bg-card, 
 .industrial [class*="bg-card"] {
   box-shadow: var(--shadow);
@@ -171,7 +182,6 @@
   transition: background 0.7s ease;
 }
 
-/* Overlay claro para modo industrial */
 .industrial .video-background::after {
   background: linear-gradient(
     to bottom, 

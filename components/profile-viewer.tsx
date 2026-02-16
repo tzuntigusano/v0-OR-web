@@ -256,7 +256,7 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
         <div className="bg-card border border-border rounded-xl overflow-hidden shadow-2xl transition-all duration-500">
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[600px]">
-              <thead className="text-[9px] uppercase text-muted-foreground bg-muted/50 font-bold italic">
+              <thead className="text-[9px] uppercase text-foreground/70 bg-muted/50 font-bold italic">
                 <tr>
                   <th className="px-4 py-3 border-b border-border">Fecha</th>
                   <th className="px-4 py-3 border-b border-border">ID</th>
