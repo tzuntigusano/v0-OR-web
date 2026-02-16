@@ -131,7 +131,7 @@ export function ProfileViewer({ user, isOwner = true }: { user: any, isOwner?: b
               <Image src={avatarUrl} alt={displayName} fill className="rounded-full border-2 border-primary object-cover shadow-lg shadow-primary/20" />
             </div>
             <div>
-              <h2 className="text-xl font-black uppercase tracking-tighter leading-none">{displayName}</h2>
+              <h2 className="text-xl font-black uppercase tracking-tighter leading-none text-foreground">{displayName}</h2>
               <p className="text-primary text-[10px] font-bold tracking-[0.3em] uppercase mt-2">Raider Elite</p>
             </div>
           </div>
