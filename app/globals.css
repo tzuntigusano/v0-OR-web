@@ -40,17 +40,27 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* MODIFICACIÓN: Clase para la División Industrial (Look RSI) */
+/* TEMA INDUSTRIAL (Versión Clara - Estilo High-Tech RSI) */
 .industrial {
-  --background: oklch(0.15 0.05 210); 
-  --foreground: oklch(0.98 0.01 210);
-  --card: oklch(0.2 0.06 210); 
-  --card-foreground: oklch(0.95 0.02 210);
-  --primary: oklch(0.7 0.2 190); /* Azul Cian Espacial */
-  --accent: oklch(0.75 0.25 190); /* Cian Brillante */
-  --ring: oklch(0.7 0.2 190);
-  --border: oklch(0.35 0.12 210); /* Borde con tinte azulado */
-  --chart-1: oklch(0.7 0.2 190);
+  --background: oklch(0.95 0.02 210); /* Fondo casi blanco azulado */
+  --foreground: oklch(0.2 0.05 210); /* Texto oscuro para contraste */
+  --card: oklch(0.98 0.01 210); /* Tarjetas blancas */
+  --card-foreground: oklch(0.2 0.05 210);
+  --primary: oklch(0.6 0.2 200); /* Azul Cian Corporativo */
+  --accent: oklch(0.55 0.2 195);
+  --ring: oklch(0.6 0.2 200);
+  --border: oklch(0.85 0.03 210); /* Bordes muy suaves */
+  --chart-1: oklch(0.6 0.2 200);
+  
+  /* Sombra personalizada para el modo claro */
+  --shadow: 0 10px 30px -10px rgba(53, 182, 236, 0.15), 0 4px 10px -5px rgba(0, 0, 0, 0.05);
+}
+
+/* Aplicación de sombras automáticas a las cards en modo industrial */
+.industrial .bg-card, 
+.industrial [class*="bg-card"] {
+  box-shadow: var(--shadow);
+  border-color: oklch(0.9 0.02 210);
 }
 
 .dark {
@@ -158,11 +168,16 @@
   height: 100%;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.5) 50%, rgba(0, 0, 0, 0.8) 100%);
   z-index: 1;
+  transition: background 0.7s ease;
 }
 
-/* Modificación para el overlay en modo industrial (Look RSI Azulado) */
+/* Overlay claro para modo industrial */
 .industrial .video-background::after {
-  background: radial-gradient(circle at center, rgba(11, 29, 41, 0.4) 0%, rgba(5, 15, 25, 0.85) 100%);
+  background: linear-gradient(
+    to bottom, 
+    rgba(240, 245, 250, 0.85) 0%, 
+    rgba(225, 235, 245, 0.95) 100%
+  );
 }
 
 .video-background iframe {
